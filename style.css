@@ -772,3 +772,128 @@ td.col-mat-desc-wrap { max-width: 280px; white-space: normal; line-height: 1.4; 
   transition: background-color 0.22s ease, border-color 0.22s ease, color 0.22s ease,
               transform 0.18s ease, box-shadow 0.18s ease, opacity 0.14s ease;
 }
+
+/* ══════════════════════════════════════════════
+   STOCK CONCENTRATION PAGE
+   ══════════════════════════════════════════════ */
+
+/* Two-column grid for pie + analysis */
+.conc-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+  margin-bottom: 0;
+}
+@media (max-width: 900px) {
+  .conc-grid-2 { grid-template-columns: 1fr; }
+}
+
+.conc-chart-sub {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+
+/* Concentration legend dots */
+.conc-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.conc-dot {
+  display: inline-block;
+  width: 9px; height: 9px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* Analysis summary cards */
+.conc-analysis-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.conc-band-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  position: relative;
+  overflow: hidden;
+  transition: var(--theme-transition);
+}
+.conc-band-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: 8px 8px 0 0;
+}
+.conc-band-card.sole::before   { background: #f85149; }
+.conc-band-card.few::before    { background: #ffa657; }
+.conc-band-card.spread::before { background: #3fb950; }
+.conc-band-card.wide::before   { background: #3a8fd4; }
+
+.conc-band-icon { font-size: 1.4rem; line-height: 1; margin-bottom: 0.1rem; }
+.conc-band-count {
+  font-size: 1.4rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+.conc-band-label {
+  font-size: 0.67rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.conc-band-desc {
+  font-size: 0.63rem;
+  color: var(--dim);
+  margin-top: 0.15rem;
+  line-height: 1.35;
+}
+
+/* Concentration risk badge on table rows */
+.conc-pct-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  line-height: 1.5;
+}
+.conc-pct-badge.critical {
+  background: rgba(248,81,73,0.15);
+  color: #f85149;
+  border: 1px solid rgba(248,81,73,0.3);
+}
+.conc-pct-badge.high {
+  background: rgba(255,166,87,0.15);
+  color: #ffa657;
+  border: 1px solid rgba(255,166,87,0.3);
+}
+
+/* Plant name pill in concentration table */
+.conc-plant-pill {
+  display: inline-block;
+  background: var(--accent-glow);
+  color: var(--blue);
+  border: 1px solid rgba(58,143,212,0.25);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
