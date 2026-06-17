@@ -925,3 +925,18 @@ td.col-mat-desc-wrap { max-width: 280px; white-space: normal; line-height: 1.4; 
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Original SAP code pill — shown in the Merged SAP Codes column when mapping is active */
+.conc-orig-pill {
+  display: inline-block;
+  background: rgba(138,99,204,0.10);
+  color: var(--purple, #8763cc);
+  border: 1px solid rgba(138,99,204,0.22);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 0.62rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 500;
+  white-space: nowrap;
+  margin-right: 2px;
+}
