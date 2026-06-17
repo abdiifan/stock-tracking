@@ -3379,7 +3379,7 @@ function renderConcentration() {
     document.getElementById("conc-dl-row").innerHTML = "";
   } else {
     const cols = [
-      { key: "mat",         label: "Material Code",    fmt: (v, r) => renderMatCode(v, r), raw: true, cellClass: "col-mat-code-wrap" },
+      { key: "mat",         label: "Material Code",    fmt: (v, r) => renderMatCode(r.Material, r), raw: true, cellClass: "col-mat-code-wrap" },
       { key: "desc",        label: "Description",      fmt: (v)    => `<span class="col-mat-desc">${escHtml(String(v||""))}</span>`, raw: true, cellClass: "col-mat-desc-wrap" },
       // FIX-CONC-MAP: show merged SAP codes column only when mapping is active
       ...(useMapped ? [{
@@ -3407,16 +3407,31 @@ function renderConcentration() {
     ];
 
     // Build plain objects for buildTable
-    const rows = topConcentrated.map(r => ({
-      mat:         r.mat,
-      desc:        r.desc,
-      origCodes:   r.origCodes || "",
-      topPlantName:r.topPlantName,
-      topQty:      r.topQty,
-      totalQty:    r.totalQty,
-      totalVal:    r.totalVal,
-      pctQty:      r.pctQty,
-    }));
+    // FIX-CONC-STD: attach mapping fields so renderMatCode delegates to
+    // renderMappedMatCode_early and shows the STD badge just like every other page.
+    // A row is "mapped" when mapping is active AND it has at least one original
+    // SAP code that differs from the target (i.e. it merged ≥1 source code).
+    const rows = topConcentrated.map(r => {
+      const hasMergedCodes = useMapped && r.origCodes && r.origCodes.length > 0;
+      return {
+        mat:             r.mat,
+        // The "Material" key is what renderMatCode reads as `val` (first arg)
+        Material:        r.mat,
+        desc:            r.desc,
+        origCodes:       r.origCodes || "",
+        topPlantName:    r.topPlantName,
+        topQty:          r.topQty,
+        totalQty:        r.totalQty,
+        totalVal:        r.totalVal,
+        pctQty:          r.pctQty,
+        // Mapping display fields — mirror what applyMaterialMapping stamps on rows
+        _isMapped:       hasMergedCodes,
+        _mappedMaterial: r.mat,
+        _origMaterial:   hasMergedCodes ? r.origCodes.split(", ")[0] : r.mat,
+        _mappedDesc:     r.desc,
+        _origDesc:       "",
+      };
+    });
     document.getElementById("conc-table-wrap").innerHTML = buildTable(rows, cols,
       (row) => row.pctQty >= 95 ? "row-critical" : "row-warning"
     );
