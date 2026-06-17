@@ -446,7 +446,7 @@ function populateAllFilters() {
     { wrapId:"ms-transit-mg", ddId:"ms-transit-mg-dd", page:"transit",   key:"mgs" },
     { wrapId:"ms-expiry-mg",  ddId:"ms-expiry-mg-dd",  page:"expiry",    key:"mgs" },
     { wrapId:"ms-qc-mg",      ddId:"ms-qc-mg-dd",      page:"qc",        key:"mgs" },
-    { wrapId:"ms-branch-mg",  ddId:"ms-branch-mg-dd",  page:"branch",    key:"mgs" },
+
     { wrapId:"ms-flow-mg",    ddId:"ms-flow-mg-dd",    page:"flow",      key:"mgs" },
   ];
   mgConfigs.forEach(cfg => {
@@ -465,7 +465,7 @@ function populateAllFilters() {
     { wrapId:"ms-transit-vt", ddId:"ms-transit-vt-dd", page:"transit"   },
     { wrapId:"ms-expiry-vt",  ddId:"ms-expiry-vt-dd",  page:"expiry"    },
     { wrapId:"ms-qc-vt",      ddId:"ms-qc-vt-dd",      page:"qc"        },
-    { wrapId:"ms-branch-vt",  ddId:"ms-branch-vt-dd",  page:"branch"    },
+
     { wrapId:"ms-flow-vt",    ddId:"ms-flow-vt-dd",    page:"flow"      },
   ];
   vtConfigs.forEach(cfg => {
@@ -487,7 +487,7 @@ function populateAllFilters() {
     { wrapId:"ms-transit-mat", ddId:"ms-transit-mat-dd", page:"transit",   key:"materials" },
     { wrapId:"ms-expiry-mat",  ddId:"ms-expiry-mat-dd",  page:"expiry",    key:"materials" },
     { wrapId:"ms-qc-mat",      ddId:"ms-qc-mat-dd",      page:"qc",        key:"materials" },
-    { wrapId:"ms-branch-mat",  ddId:"ms-branch-mat-dd",  page:"branch",    key:"materials" },
+
     { wrapId:"ms-flow-mat",    ddId:"ms-flow-mat-dd",    page:"flow",      key:"materials" },
   ];
   matConfigs.forEach(cfg => {
@@ -3269,8 +3269,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "expiry-filter-clear":  { page:"expiry",    plantWrap:"ms-expiry-plant",  mgWrap:"ms-expiry-mg",  vtWrap:"ms-expiry-vt",  matWrap:"ms-expiry-mat",  action:"clear" },
     "qc-filter-apply":      { page:"qc",        plantWrap:"ms-qc-plant",      mgWrap:"ms-qc-mg",      vtWrap:"ms-qc-vt",      matWrap:"ms-qc-mat",      action:"apply" },
     "qc-filter-clear":      { page:"qc",        plantWrap:"ms-qc-plant",      mgWrap:"ms-qc-mg",      vtWrap:"ms-qc-vt",      matWrap:"ms-qc-mat",      action:"clear" },
-    "branch-filter-apply":  { page:"branch",    plantWrap:null,               mgWrap:"ms-branch-mg",  vtWrap:"ms-branch-vt",  matWrap:"ms-branch-mat",  action:"apply" },
-    "branch-filter-clear":  { page:"branch",    plantWrap:null,               mgWrap:"ms-branch-mg",  vtWrap:"ms-branch-vt",  matWrap:"ms-branch-mat",  action:"clear" },
+
     "flow-filter-apply":    { page:"flow",      plantWrap:"ms-flow-plant",    mgWrap:"ms-flow-mg",    vtWrap:"ms-flow-vt",    matWrap:"ms-flow-mat",    action:"apply" },
     "flow-filter-clear":    { page:"flow",      plantWrap:"ms-flow-plant",    mgWrap:"ms-flow-mg",    vtWrap:"ms-flow-vt",    matWrap:"ms-flow-mat",    action:"clear" },
   };
