@@ -3284,8 +3284,8 @@ function renderConcentration() {
     marker: { colors: COLORWAY },
     textfont: { size: 11 },
   }], pl({
-    height: 320,
-    margin: { l: 20, r: 20, t: 20, b: 20 },
+    height: 300,
+    margin: { l: 10, r: 10, t: 10, b: 10 },
     showlegend: false,
   }), PLOTLY_CONFIG);
 
@@ -3310,10 +3310,9 @@ function renderConcentration() {
       <br>Sole Branch threshold: ≥80% in one plant.
     </div>`;
 
-  // ── Highly Concentrated Table (top 8 by total value, where pct ≥ 80%) ──
+  // ── Highly Concentrated Table (all sole-branch materials, sorted by total value) ──
   const topConcentrated = [...sole]
-    .sort((a, b) => b.totalVal - a.totalVal)
-    .slice(0, 8);
+    .sort((a, b) => b.totalVal - a.totalVal);
 
   if (topConcentrated.length === 0) {
     document.getElementById("conc-table-wrap").innerHTML = `<div class="alert-info">✓ No materials with &gt;80% concentration in a single plant.</div>`;
@@ -3378,8 +3377,8 @@ function renderConcentration() {
     textposition: "outside",
     textfont: { size: 10 },
   }], pl({
-    height: 260,
-    margin: { l: 20, r: 20, t: 30, b: 60 },
+    height: 300,
+    margin: { l: 20, r: 20, t: 30, b: 70 },
     xaxis: { title: { text: "Number of plants stocking the material", font: { size: 10 } }, tickfont: { size: 10 } },
     yaxis: { title: { text: "Materials", font: { size: 10 } }, tickformat: ",d" },
     showlegend: false,
