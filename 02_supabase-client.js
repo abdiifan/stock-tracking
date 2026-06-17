@@ -5,8 +5,8 @@
 // "push to Supabase, then every viewer reads from Supabase."
 // =============================================================================
 
-const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";   // ← replace
-const SUPABASE_ANON_KEY = "YOUR-ANON-KEY";                  // ← replace
+const SUPABASE_URL = "https://dvknjrvsrvpuhcpdeyzs.supabase.co";   // ← replace
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2a25qcnZzcnZwdWhjcGRleXpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MDU0OTAsImV4cCI6MjA5NzE4MTQ5MH0.nGCIe8XVAGWvUGKmZahliANBEk7FjCIpdZ-HoCPRCU8";                  // ← replace
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
