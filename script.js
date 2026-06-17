@@ -3381,16 +3381,7 @@ function renderConcentration() {
     const cols = [
       { key: "mat",         label: "Material Code",    fmt: (v, r) => renderMatCode(r.Material, r), raw: true, cellClass: "col-mat-code-wrap" },
       { key: "desc",        label: "Description",      fmt: (v)    => `<span class="col-mat-desc">${escHtml(String(v||""))}</span>`, raw: true, cellClass: "col-mat-desc-wrap" },
-      // FIX-CONC-MAP: show merged SAP codes column only when mapping is active
-      ...(useMapped ? [{
-        key: "origCodes",
-        label: "Merged SAP Codes",
-        fmt: (v) => v
-          ? v.split(", ").map(c => `<span class="conc-orig-pill">${escHtml(c)}</span>`).join(" ")
-          : '<span style="color:var(--dim);font-size:0.65rem">—</span>',
-        raw: true,
-        cellClass: "col-mat-code-wrap",
-      }] : []),
+
       { key: "topPlantName",label: "Dominant Plant",   fmt: (v)    => `<span class="conc-plant-pill" title="${escHtml(String(v||""))}">${escHtml(String(v||""))}</span>`, raw: true },
       { key: "topQty",      label: "Qty in Plant",     fmt: fmtQty, rawKey: "topQty",   cellClass: "col-qty" },
       { key: "totalQty",    label: "Total Qty",        fmt: fmtQty, rawKey: "totalQty", cellClass: "col-qty" },
@@ -3440,7 +3431,7 @@ function renderConcentration() {
     const exportCols = [
       { key:"mat",          label:"Material Code" },
       { key:"desc",         label:"Description" },
-      ...(useMapped ? [{ key:"origCodes", label:"Merged SAP Codes" }] : []),
+
       { key:"topPlantName", label:"Dominant Plant" },
       { key:"topQty",       label:"Qty in Plant",        fmt:fmtQty, rawKey:"topQty" },
       { key:"totalQty",     label:"Total Qty",            fmt:fmtQty, rawKey:"totalQty" },
