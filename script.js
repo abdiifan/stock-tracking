@@ -1908,12 +1908,14 @@ function renderExpiryDetailTable(baseDf, today) {
 
   if (!selectedMaterials.length) {
     wrap.innerHTML = `<div class="alert-info">🔍 Select one or more materials in the filter bar above to view detailed batch/location-level expiry data.</div>`;
+    document.getElementById("expiry-dl-row").innerHTML = "";
     return;
   }
 
   const matches = baseDf.filter(r => (r["Unrestricted Stock"] || 0) > 0 && (r["Value of Unrestricted Stock"] || 0) > 0);
   if (!matches.length) {
     wrap.innerHTML = `<div class="alert-info">No batch/location records found for the selected material(s).</div>`;
+    document.getElementById("expiry-dl-row").innerHTML = "";
     return;
   }
 
@@ -1950,6 +1952,11 @@ function renderExpiryDetailTable(baseDf, today) {
   ];
 
   wrap.innerHTML = summary + buildTable(sorted, cols, r => r._statusClass);
+
+  // Export buttons
+  injectDlButtons("expiry-dl-row",
+    () => downloadCSV(sorted,   cols, "expiry_detail.csv"),
+    () => downloadExcel(sorted, cols, "expiry_detail.xlsx"));
 }
 
 // NOTE: QC and Flow material lookup are now handled via the Material
@@ -2412,6 +2419,11 @@ function renderFlow() {
     ? buildTable(reorderRows, reorderCols, () => "row-amber")
     : `<div class="alert-info">✓ No reorder alerts — all materials have available unrestricted stock.</div>`;
 
+  // Reorder export buttons
+  injectDlButtons("reorder-dl-row",
+    () => downloadCSV(reorderRows,   reorderCols, "reorder_alerts.csv"),
+    () => downloadExcel(reorderRows, reorderCols, "reorder_alerts.xlsx"));
+
   // Stock levels chart — use converted quantities
   const plantStockMap = {};
   df.forEach(r => {
@@ -2446,6 +2458,11 @@ function renderFlow() {
   document.getElementById("transfer-table-wrap").innerHTML = transferRows.length
     ? buildTable(transferRows, transferCols)
     : `<div class="alert-info">No inter-location transfers currently in progress.</div>`;
+
+  // Transfer export buttons
+  injectDlButtons("transfer-dl-row",
+    () => downloadCSV(transferRows,   transferCols, "inter_location_transfers.csv"),
+    () => downloadExcel(transferRows, transferCols, "inter_location_transfers.xlsx"));
 
   // Inbound vs available chart — exclude unverified transit rows
   const inboundAgg = sortBy(
@@ -3172,7 +3189,23 @@ function renderIncomingShelfLife() {
     "Plants in Inventory","Storage Location","Total Inv. Qty",
   ];
   const exportColDefs = EXPORT_KEYS.map(k => ({ key: k, label: k }));
+  const exportRows    = rows.map(_islFlatRow);
 
+  injectDlButtons("isl-dl-row",
+    () => {
+      const header = EXPORT_KEYS.join(",");
+      const lines  = exportRows.map(r => EXPORT_KEYS.map(k => {
+        let v = String(r[k] ?? "");
+        if (v.includes(",") || v.includes('"') || v.includes("\n")) v = `"${v.replace(/"/g,'""')}"`;
+        return v;
+      }).join(","));
+      const blob = new Blob(["\uFEFF" + header + "\n" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a"); a.href = url; a.download = "shelf_life_lookup.csv"; a.click();
+      URL.revokeObjectURL(url);
+    },
+    () => downloadExcel(exportRows, exportColDefs, "shelf_life_lookup.xlsx")
+  );
 
 }
 
@@ -3209,6 +3242,7 @@ function renderConcentration() {
     document.getElementById("conc-kpis").innerHTML = "";
     document.getElementById("conc-analysis-cards").innerHTML = `<div class="alert-info">No data after filters.</div>`;
     document.getElementById("conc-table-wrap").innerHTML = "";
+    document.getElementById("conc-dl-row").innerHTML = "";
     document.getElementById("chart-conc-pie").innerHTML = "";
     document.getElementById("chart-conc-spread").innerHTML = "";
     return;
@@ -3342,6 +3376,7 @@ function renderConcentration() {
 
   if (topConcentrated.length === 0) {
     document.getElementById("conc-table-wrap").innerHTML = `<div class="alert-info">✓ No materials with &gt;80% concentration in a single plant.</div>`;
+    document.getElementById("conc-dl-row").innerHTML = "";
   } else {
     const cols = [
       { key: "mat",         label: "Material Code",    fmt: (v, r) => renderMatCode(v, r), raw: true, cellClass: "col-mat-code-wrap" },
@@ -3385,6 +3420,21 @@ function renderConcentration() {
     document.getElementById("conc-table-wrap").innerHTML = buildTable(rows, cols,
       (row) => row.pctQty >= 95 ? "row-critical" : "row-warning"
     );
+
+    // Export buttons — use plain exportable cols (strip raw HTML formatters)
+    const exportCols = [
+      { key:"mat",          label:"Material Code" },
+      { key:"desc",         label:"Description" },
+      ...(useMapped ? [{ key:"origCodes", label:"Merged SAP Codes" }] : []),
+      { key:"topPlantName", label:"Dominant Plant" },
+      { key:"topQty",       label:"Qty in Plant",        fmt:fmtQty, rawKey:"topQty" },
+      { key:"totalQty",     label:"Total Qty",            fmt:fmtQty, rawKey:"totalQty" },
+      { key:"totalVal",     label:"Total Value (ETB)",    fmt:fmtETB, rawKey:"totalVal" },
+      { key:"pctQty",       label:"% in Top Plant",       fmt: v => Number(v).toFixed(1) + "%" },
+    ];
+    injectDlButtons("conc-dl-row",
+      () => downloadCSV(rows,   exportCols, "concentrated_items.csv"),
+      () => downloadExcel(rows, exportCols, "concentrated_items.xlsx"));
   }
 
   // ── Branch Spread Bar Chart ──
