@@ -310,6 +310,44 @@ body { display: flex; }
 }
 .filter-bar .apply-btn { position: relative; z-index: 310; flex: 0 0 auto; }
 
+/* ── ISL filter bar: align-items bottom so label+select wrappers
+      sit flush with the ms-wrap buttons and Apply buttons ── */
+#incoming-content .filter-bar {
+  align-items: flex-end;
+}
+/* Each labeled select wrapper — no flex growth, just shrink-to-fit */
+#incoming-content .filter-bar > div:not(.ms-wrap) {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+/* Selects match the ms-btn height (padding 0.28rem top+bottom = ~30px total) */
+#incoming-content .filter-bar select {
+  height: 30px;
+  padding: 0 0.62rem;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.77rem;
+  cursor: pointer;
+  transition: border-color 0.14s, background 0.14s;
+  appearance: auto;
+}
+#incoming-content .filter-bar select:hover {
+  border-color: var(--blue);
+  background: var(--surface3);
+}
+/* ms-wrap and Apply buttons also bottom-align naturally now */
+#incoming-content .filter-bar .ms-wrap {
+  flex: 0 1 auto;
+  align-self: flex-end;
+}
+#incoming-content .filter-bar .apply-btn {
+  align-self: flex-end;
+}
+
 /* ══════════════════════════════════════════════
    KPI CARDS
    ══════════════════════════════════════════════ */
