@@ -167,15 +167,20 @@
     <!-- ── TAB BAR ── -->
     <div class="transit-tab-bar" style="display:flex;gap:0.5rem;margin-top:1.5rem;margin-bottom:0;border-bottom:2px solid var(--border2)">
       <button class="transit-tab-btn active" data-tab="verified"     style="padding:0.5rem 1.2rem;border:none;border-bottom:2px solid var(--blue);background:transparent;color:var(--blue);font-weight:600;font-size:0.85rem;cursor:pointer;margin-bottom:-2px;font-family:inherit">✅ Verified Transit Items</button>
+      <button class="transit-tab-btn"        data-tab="unverified"   style="padding:0.5rem 1.2rem;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-weight:500;font-size:0.85rem;cursor:pointer;margin-bottom:-2px;font-family:inherit">⚠️ Unverified Transit Items</button>
       <button class="transit-tab-btn"        data-tab="detail"       style="padding:0.5rem 1.2rem;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-weight:500;font-size:0.85rem;cursor:pointer;margin-bottom:-2px;font-family:inherit">📦 Stock-in-Transit Detail File</button>
       <button class="transit-tab-btn"        data-tab="withinplant"  style="padding:0.5rem 1.2rem;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-weight:500;font-size:0.85rem;cursor:pointer;margin-bottom:-2px;font-family:inherit">📦 Stock-in-Transit Within Plant</button>
     </div>
 
     <!-- ── TAB: Verified Transit Items ── -->
     <div id="transit-tab-verified" class="transit-tab-panel" style="display:block;padding-top:1rem">
-      <div id="transit-phantom-section" style="display:none;margin-top:0"></div>
       <div id="transit-dl-row" style="display:flex;gap:0.6rem;justify-content:flex-end;margin-bottom:0.5rem"></div>
       <div id="transit-table-wrap"></div>
+    </div>
+
+    <!-- ── TAB: Unverified Transit Items ── -->
+    <div id="transit-tab-unverified" class="transit-tab-panel" style="display:none;padding-top:1rem">
+      <div id="transit-phantom-section" style="display:none;margin-top:0"></div>
     </div>
 
     <!-- ── TAB: Stock-in-Transit Detail File ── -->
