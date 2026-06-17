@@ -71,6 +71,7 @@ const pageFilters = {
   branch:    { mgs: [],             valTypes: [], materials: [] },
   flow:      { plants: [], mgs: [], valTypes: [], materials: [] },
   incoming:  {},
+  concentration: { mgs: [], valTypes: [] },
 };
 
 // ── MATERIAL STANDARDIZATION MAPPING STATE ─────────────────────────────────
@@ -455,6 +456,13 @@ function populateAllFilters() {
     buildMultiSelect(cfg.wrapId, cfg.ddId, mgs, "All Material Groups");
   });
 
+  // Concentration page MG
+  (() => {
+    const wrap = document.getElementById("ms-conc-mg");
+    if (wrap) { wrap.dataset.page = "concentration"; wrap.dataset.key = "mgs"; }
+    buildMultiSelect("ms-conc-mg", "ms-conc-mg-dd", mgs, "All Material Groups");
+  })();
+
   // Valuation Type multi-selects
   const valTypes = [...new Set(rawDf.map(r => getValuationType(r)))]
     .filter(v => v && v !== "(None)")
@@ -473,6 +481,13 @@ function populateAllFilters() {
     if (wrap) { wrap.dataset.page = cfg.page; wrap.dataset.key = "valTypes"; }
     buildMultiSelect(cfg.wrapId, cfg.ddId, valTypes, "All Material Types");
   });
+
+  // Concentration page VT
+  (() => {
+    const wrap = document.getElementById("ms-conc-vt");
+    if (wrap) { wrap.dataset.page = "concentration"; wrap.dataset.key = "valTypes"; }
+    buildMultiSelect("ms-conc-vt", "ms-conc-vt-dd", valTypes, "All Material Types");
+  })();
 
   // Material multi-selects — replaces the old free-text Material Lookup search
   // boxes on Transit / Expiry / QC / Flow with a proper filter-bar control.
@@ -3161,14 +3176,225 @@ function renderIncomingShelfLife() {
 
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// STOCK CONCENTRATION
+// ═══════════════════════════════════════════════════════════════════════════
+function renderConcentration() {
+  // ── Build filtered dataset (no plant filter — concentration is cross-plant) ──
+  const f        = pageFilters["concentration"] || {};
+  const base     = getReconciledBase();
+  const mgs      = f.mgs      || [];
+  const valTypes = f.valTypes || [];
+
+  const df = base.filter(r =>
+    !isNonMedicalCode(r["Material"]) &&
+    !isNonMedicalGroup(r["Material Group Name"]) &&
+    !isProjectStockDescription(r["Special Stock Type Description"]) &&
+    !isExcludedStorageLocation(r["Storage Location"]) &&
+    (function(){ const s = String(r["Special Stock Type"] || "").trim().toUpperCase(); return s !== "Q" && s !== "W"; })() &&
+    String(r["Inventory Valuation Type"] || "").trim() !== "" &&
+    (!mgs.length      || mgs.includes(r["Material Group Name"])) &&
+    (!valTypes.length || valTypes.includes(getValuationType(r)))
+  );
+
+  if (!df.length) {
+    document.getElementById("conc-kpis").innerHTML = "";
+    document.getElementById("conc-analysis-cards").innerHTML = `<div class="alert-info">No data after filters.</div>`;
+    document.getElementById("conc-table-wrap").innerHTML = "";
+    document.getElementById("chart-conc-pie").innerHTML = "";
+    document.getElementById("chart-conc-spread").innerHTML = "";
+    return;
+  }
+
+  // ── 1. Plant-level aggregation (value basis) ──
+  const plantValMap = {};
+  df.forEach(r => {
+    const k = r["Plant Name"] || "(Blank)";
+    if (!plantValMap[k]) plantValMap[k] = 0;
+    plantValMap[k] += getMappedVal(r, "Value of Unrestricted Stock")
+                    + getVerifiedTransitVal(r)
+                    + getMappedVal(r, "Value of Stock in Quality Inspection");
+  });
+  const totalVal = Object.values(plantValMap).reduce((s, v) => s + v, 0);
+  const plantValArr = Object.entries(plantValMap)
+    .map(([name, val]) => ({ name, val, pct: totalVal > 0 ? (val / totalVal) * 100 : 0 }))
+    .sort((a, b) => b.val - a.val);
+
+  // ── 2. Per-material, per-plant aggregation (unrestricted qty + value) ──
+  // Key: material code, Value: map of plantName → { qty, val }
+  const matPlantMap = {};
+  df.forEach(r => {
+    const mat   = r._mappedMaterial || r["Material"];
+    const desc  = r._mappedDesc    || r["Material Description"] || "";
+    const plant = r["Plant Name"]  || "(Blank)";
+    if (!mat) return;
+    if (!matPlantMap[mat]) matPlantMap[mat] = { desc, plants: {}, totalQty: 0, totalVal: 0 };
+    const qty = getMappedQty(r, "Unrestricted Stock");
+    const val = getMappedVal(r, "Value of Unrestricted Stock");
+    if (!matPlantMap[mat].plants[plant]) matPlantMap[mat].plants[plant] = { qty: 0, val: 0 };
+    matPlantMap[mat].plants[plant].qty += qty;
+    matPlantMap[mat].plants[plant].val += val;
+    matPlantMap[mat].totalQty += qty;
+    matPlantMap[mat].totalVal += val;
+  });
+
+  // ── 3. Concentration classification ──
+  // For each material find the dominant plant
+  const matConcentration = Object.entries(matPlantMap).map(([mat, info]) => {
+    const plantCount = Object.keys(info.plants).length;
+    const topPlant   = Object.entries(info.plants)
+      .sort((a, b) => b[1].qty - a[1].qty)[0];
+    const topPlantName = topPlant ? topPlant[0] : "—";
+    const topQty       = topPlant ? topPlant[1].qty : 0;
+    const topVal       = topPlant ? topPlant[1].val : 0;
+    const pctQty       = info.totalQty > 0 ? (topQty / info.totalQty) * 100 : 0;
+    const pctVal       = info.totalVal > 0 ? (topVal / info.totalVal) * 100 : 0;
+    return { mat, desc: info.desc, plantCount, topPlantName, topQty, topVal, pctQty, pctVal, totalQty: info.totalQty, totalVal: info.totalVal };
+  }).filter(r => r.totalQty > 0); // only materials with unrestricted stock
+
+  // Band classification
+  const sole   = matConcentration.filter(r => r.pctQty >= 80);  // >80% in one plant
+  const few    = matConcentration.filter(r => r.pctQty < 80 && r.plantCount >= 2 && r.plantCount <= 4);
+  const spread = matConcentration.filter(r => r.pctQty < 80 && r.plantCount >= 5 && r.plantCount <= 8);
+  const wide   = matConcentration.filter(r => r.pctQty < 80 && r.plantCount > 8);
+
+  // ── KPIs ──
+  const topPlantPct = plantValArr.length > 0 ? plantValArr[0].pct : 0;
+  const totalMats   = matConcentration.length;
+  setKpis("conc-kpis", [
+    ["Total Unique Plants",      new Set(df.map(r => r["Plant Name"])).size.toLocaleString(),        "With unrestricted stock",       "blue"],
+    ["Sole-Branch Materials",    sole.length.toLocaleString(),   `${totalMats > 0 ? ((sole.length/totalMats)*100).toFixed(0) : 0}% of materials`,  "red"],
+    ["Few-Branch Materials",     few.length.toLocaleString(),    "Held in 2–4 plants",               "amber"],
+    ["Top Plant Share",          topPlantPct.toFixed(1) + "%",   plantValArr[0]?.name || "—",        "purple"],
+    ["Unique Materials Tracked", totalMats.toLocaleString(),     "Unrestricted stock only",          "green"],
+  ]);
+
+  // ── Pie chart: value by plant ──
+  const pieLabels = plantValArr.map(r => r.name);
+  const pieVals   = plantValArr.map(r => r.val);
+  const pieText   = plantValArr.map(r => `${r.pct.toFixed(1)}%`);
+  Plotly.newPlot("chart-conc-pie", [{
+    type: "pie",
+    labels: pieLabels,
+    values: pieVals,
+    text:   pieText,
+    textinfo: "label+percent",
+    hovertemplate: "<b>%{label}</b><br>ETB %{value:,.0f}<br>%{percent}<extra></extra>",
+    hole: 0.38,
+    marker: { colors: COLORWAY },
+    textfont: { size: 11 },
+  }], pl({
+    height: 320,
+    margin: { l: 20, r: 20, t: 20, b: 20 },
+    showlegend: false,
+  }), PLOTLY_CONFIG);
+
+  // ── Concentration Analysis Cards ──
+  function bandCard(cls, icon, count, label, desc) {
+    return `<div class="conc-band-card ${cls}">
+      <div class="conc-band-icon">${icon}</div>
+      <div class="conc-band-count">${count}</div>
+      <div class="conc-band-label">${label}</div>
+      <div class="conc-band-desc">${desc}</div>
+    </div>`;
+  }
+  document.getElementById("conc-analysis-cards").innerHTML = `
+    <div class="conc-analysis-grid">
+      ${bandCard("sole",   "🔴", sole.length,   "Sole Branch",   ">80% of stock in a single plant — high supply-chain risk")}
+      ${bandCard("few",    "🟠", few.length,    "Few Branches",  "Spread across 2–4 plants — limited redundancy")}
+      ${bandCard("spread", "🟡", spread.length, "Moderate Spread","Across 5–8 plants — reasonable distribution")}
+      ${bandCard("wide",   "🟢", wide.length,   "Wide Spread",   "Across 9+ plants — well distributed")}
+    </div>
+    <div style="margin-top:0.85rem;font-size:0.7rem;color:var(--dim);line-height:1.5">
+      Classification based on <b>% of total unrestricted quantity</b> held by the top plant per material.
+      <br>Sole Branch threshold: ≥80% in one plant.
+    </div>`;
+
+  // ── Highly Concentrated Table (top 8 by total value, where pct ≥ 80%) ──
+  const topConcentrated = [...sole]
+    .sort((a, b) => b.totalVal - a.totalVal)
+    .slice(0, 8);
+
+  if (topConcentrated.length === 0) {
+    document.getElementById("conc-table-wrap").innerHTML = `<div class="alert-info">✓ No materials with &gt;80% concentration in a single plant.</div>`;
+  } else {
+    const cols = [
+      { key: "mat",         label: "Material Code",    fmt: (v, r) => renderMatCode(v, r), raw: true, cellClass: "col-mat-code-wrap" },
+      { key: "desc",        label: "Description",      fmt: (v)    => `<span class="col-mat-desc">${escHtml(String(v||""))}</span>`, raw: true, cellClass: "col-mat-desc-wrap" },
+      { key: "topPlantName",label: "Dominant Plant",   fmt: (v)    => `<span class="conc-plant-pill" title="${escHtml(String(v||""))}">${escHtml(String(v||""))}</span>`, raw: true },
+      { key: "topQty",      label: "Qty in Plant",     fmt: fmtQty, rawKey: "topQty",   cellClass: "col-qty" },
+      { key: "totalQty",    label: "Total Qty",        fmt: fmtQty, rawKey: "totalQty", cellClass: "col-qty" },
+      { key: "totalVal",    label: "Total Value (ETB)",fmt: fmtETB, rawKey: "totalVal", cellClass: "col-val" },
+      {
+        key: "pctQty",
+        label: "% of Qty in Top Plant",
+        fmt: (v) => {
+          const cls = v >= 95 ? "critical" : "high";
+          return `<span class="conc-pct-badge ${cls}">${Number(v).toFixed(1)}%</span>`;
+        },
+        raw: true,
+      },
+    ];
+
+    // Build plain objects for buildTable
+    const rows = topConcentrated.map(r => ({
+      mat:         r.mat,
+      desc:        r.desc,
+      topPlantName:r.topPlantName,
+      topQty:      r.topQty,
+      totalQty:    r.totalQty,
+      totalVal:    r.totalVal,
+      pctQty:      r.pctQty,
+    }));
+    document.getElementById("conc-table-wrap").innerHTML = buildTable(rows, cols,
+      (row) => row.pctQty >= 95 ? "row-critical" : "row-warning"
+    );
+  }
+
+  // ── Branch Spread Bar Chart ──
+  // Count materials by number of plants they occupy
+  const spreadCountMap = {};
+  matConcentration.forEach(r => {
+    const k = r.plantCount;
+    spreadCountMap[k] = (spreadCountMap[k] || 0) + 1;
+  });
+  const spreadKeys  = Object.keys(spreadCountMap).map(Number).sort((a, b) => a - b);
+  const spreadCounts = spreadKeys.map(k => spreadCountMap[k]);
+  const spreadColors = spreadKeys.map(k =>
+    k === 1 ? "#f85149" : k <= 4 ? "#ffa657" : k <= 8 ? "#d29922" : "#3fb950"
+  );
+
+  const spreadLabels = spreadKeys.map(k =>
+    k === 1 ? "1 plant\n(sole)" : `${k} plant${k > 1 ? "s" : ""}`
+  );
+
+  Plotly.newPlot("chart-conc-spread", [{
+    type: "bar",
+    x: spreadLabels,
+    y: spreadCounts,
+    marker: { color: spreadColors },
+    hovertemplate: "<b>%{x}</b><br>%{y} material(s)<extra></extra>",
+    text: spreadCounts,
+    textposition: "outside",
+    textfont: { size: 10 },
+  }], pl({
+    height: 260,
+    margin: { l: 20, r: 20, t: 30, b: 60 },
+    xaxis: { title: { text: "Number of plants stocking the material", font: { size: 10 } }, tickfont: { size: 10 } },
+    yaxis: { title: { text: "Materials", font: { size: 10 } }, tickformat: ",d" },
+    showlegend: false,
+  }), PLOTLY_CONFIG);
+}
+
 const PAGE_RENDERERS = {
-  dashboard: renderDashboard,
-  transit:   renderTransit,
-  expiry:    renderExpiry,
-  qc:        renderQC,
-  branch:    renderBranch,
-  flow:      renderFlow,
-  incoming:  renderIncomingShelfLife,
+  dashboard:     renderDashboard,
+  transit:       renderTransit,
+  expiry:        renderExpiry,
+  qc:            renderQC,
+  branch:        renderBranch,
+  flow:          renderFlow,
+  incoming:      renderIncomingShelfLife,
+  concentration: renderConcentration,
 };
 
 function renderPage(id) {
@@ -3302,8 +3528,10 @@ document.addEventListener("DOMContentLoaded", () => {
     "qc-filter-apply":      { page:"qc",        plantWrap:"ms-qc-plant",      mgWrap:"ms-qc-mg",      vtWrap:"ms-qc-vt",      matWrap:"ms-qc-mat",      action:"apply" },
     "qc-filter-clear":      { page:"qc",        plantWrap:"ms-qc-plant",      mgWrap:"ms-qc-mg",      vtWrap:"ms-qc-vt",      matWrap:"ms-qc-mat",      action:"clear" },
 
-    "flow-filter-apply":    { page:"flow",      plantWrap:"ms-flow-plant",    mgWrap:"ms-flow-mg",    vtWrap:"ms-flow-vt",    matWrap:"ms-flow-mat",    action:"apply" },
-    "flow-filter-clear":    { page:"flow",      plantWrap:"ms-flow-plant",    mgWrap:"ms-flow-mg",    vtWrap:"ms-flow-vt",    matWrap:"ms-flow-mat",    action:"clear" },
+    "flow-filter-apply":    { page:"flow",          plantWrap:"ms-flow-plant",    mgWrap:"ms-flow-mg",    vtWrap:"ms-flow-vt",    matWrap:"ms-flow-mat",    action:"apply" },
+    "flow-filter-clear":    { page:"flow",          plantWrap:"ms-flow-plant",    mgWrap:"ms-flow-mg",    vtWrap:"ms-flow-vt",    matWrap:"ms-flow-mat",    action:"clear" },
+    "conc-filter-apply":    { page:"concentration", plantWrap:null,               mgWrap:"ms-conc-mg",    vtWrap:"ms-conc-vt",    matWrap:null,             action:"apply" },
+    "conc-filter-clear":    { page:"concentration", plantWrap:null,               mgWrap:"ms-conc-mg",    vtWrap:"ms-conc-vt",    matWrap:null,             action:"clear" },
   };
 
   document.body.addEventListener("click", (e) => {
