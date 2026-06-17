@@ -292,13 +292,23 @@ body { display: flex; }
    FILTER BAR
    ══════════════════════════════════════════════ */
 .filter-bar {
-  display: flex; gap: 0.55rem; flex-wrap: wrap; align-items: center;
+  display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 8px; padding: 0.6rem 0.85rem; margin-bottom: 1.2rem;
   position: relative;
   transition: var(--theme-transition);
 }
-.filter-bar .apply-btn { position: relative; z-index: 310; }
+/* All ms-wrap dropdowns in a filter bar grow equally */
+.filter-bar .ms-wrap {
+  flex: 1 1 0;
+  min-width: 140px;
+  max-width: none;
+}
+.filter-bar .ms-wrap .ms-btn {
+  width: 100%;
+  min-width: 0;
+}
+.filter-bar .apply-btn { position: relative; z-index: 310; flex: 0 0 auto; }
 
 /* ══════════════════════════════════════════════
    KPI CARDS
