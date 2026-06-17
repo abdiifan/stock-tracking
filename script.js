@@ -3203,8 +3203,7 @@ function renderConcentration() {
     (!valTypes.length || valTypes.includes(getValuationType(r)))
   );
 
-  // Mapping banner (no-ops when no mapping loaded)
-  renderMappingBanner("conc-mapping-banner");
+
 
   if (!df.length) {
     document.getElementById("conc-kpis").innerHTML = "";
