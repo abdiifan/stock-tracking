@@ -3654,7 +3654,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // File upload
-  document.getElementById("fileInput").addEventListener("change", e => {
+  document.getElementById("const rawRows = XLSX.utils.sheet_to_json(sheet); // however you currently get this
+await replaceInventorySnapshot(rawRows, (msg) => {
+  document.getElementById("fileStatus").textContent = msg;
+});").addEventListener("change", e => {
     const f = e.target.files[0];
     if (f) loadFile(f);
     // FIX-FILE-RESET: reset value so the same file can be re-uploaded (e.g. after editing)
