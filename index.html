@@ -36,7 +36,7 @@
     <button class="nav-btn" data-page="qc">🔬 Quality Inspection</button>
     <button class="nav-btn" data-page="branch">🏢 Branch Comparison</button>
     <button class="nav-btn" data-page="flow">📦 Zero Unrestricted Stock</button>
-    <button class="nav-btn" data-page="incoming">🧪 Incoming Shelf Life</button>
+    <button class="nav-btn" data-page="incoming">🧪 Shelf Life Lookup</button>
     <button class="nav-btn" data-page="concentration">🎯 Stock Concentration</button>
   </nav>
 
@@ -49,7 +49,7 @@
   <div id="fileStatus"></div>
 
   <div class="sidebar-divider"></div>
-  <div class="upload-label">Received Goods (Shelf Life)</div>
+  <div class="upload-label">Received Goods (Shelf Life Lookup)</div>
   <label class="upload-btn incoming-upload-btn" for="incomingFileInput">
     <span id="incomingUploadBtnText">📥 Upload Received Goods Excel</span>
     <input type="file" id="incomingFileInput" accept=".xlsx,.xls" />
@@ -350,14 +350,14 @@
   <section id="page-incoming" class="page" style="display:none">
     <div class="page-header-row">
       <div>
-        <div class="page-title">🧪 Incoming Shelf Life</div>
+        <div class="page-title">🧪 Shelf Life Lookup</div>
         <div class="page-subtitle">HO01 Plant Only · ZME, ZMS, ZLC valuation types · Based on Receipt (Posting) Date</div>
       </div>
     </div>
 
     <!-- No file alert -->
     <div id="incoming-no-file" class="alert-info" style="margin-bottom:1rem">
-      Upload a <b>Received Goods Excel</b> file (movement 101 export) using the <b>📥 Upload Received Goods Excel</b> button in the sidebar to enable Incoming Shelf Life analysis.
+      Upload a <b>Received Goods Excel</b> file (movement 101 export) using the <b>📥 Upload Received Goods Excel</b> button in the sidebar to enable Shelf Life Lookup analysis.
       Also upload the <b>Inventory Excel</b> file — only received batches that are present in the current inventory (any branch) will be shown.
     </div>
 
@@ -406,7 +406,7 @@
       </div>
 
       <!-- Table -->
-      <div class="section-header" style="margin-bottom:0.5rem">Detailed Incoming Shelf Life Records</div>
+      <div class="section-header" style="margin-bottom:0.5rem">Detailed Shelf Life Lookup Records</div>
       <div id="isl-count" class="alert-info" style="margin-bottom:0.7rem; display:none"></div>
       <div id="isl-table-wrap"></div>
     </div>
@@ -427,9 +427,6 @@
       <button type="button" class="apply-btn small" id="conc-filter-apply">Apply</button>
       <button type="button" class="apply-btn secondary small" id="conc-filter-clear">Clear</button>
     </div>
-
-    <!-- Mapping-active banner (populated by renderMappingBanner when a mapping file is loaded) -->
-    <div id="conc-mapping-banner"></div>
 
     <div class="kpi-row" id="conc-kpis"></div>
 
