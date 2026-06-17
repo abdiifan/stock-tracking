@@ -2169,6 +2169,10 @@ function renderBranch() {
             <div class="ms-wrap" id="mat-ms-wrap" style="min-width:260px"><button class="ms-btn" type="button">All Materials <span class="ms-arrow">▾</span></button><div class="ms-dropdown" id="mat-ms-dd"></div></div>
           </div>
           <div>
+            <div class="nav-label" style="font-size:0.65rem;margin-bottom:3px">Material Group</div>
+            <div class="ms-wrap" id="mat-mg-ms-wrap" style="min-width:220px"><button class="ms-btn" type="button">All Material Groups <span class="ms-arrow">▾</span></button><div class="ms-dropdown" id="mat-mg-ms-dd"></div></div>
+          </div>
+          <div>
             <div class="nav-label" style="font-size:0.65rem;margin-bottom:3px">Metric</div>
             <select id="mat-metric" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px">
               <option value="TotalValue">Total Value (ETB)</option>
@@ -2207,6 +2211,10 @@ function renderBranch() {
       document.getElementById("mat-apply").addEventListener("click", refreshMaterialView);
       // Build the material multi-select after HTML is in DOM
       buildMultiSelect("mat-ms-wrap", "mat-ms-dd", allMatOptions, "All Materials");
+      // Material Group multi-select — lets users narrow the comparison to one or
+      // more material groups (e.g. only "Antibiotics" or "Vaccines") in addition
+      // to / instead of picking individual materials.
+      buildMultiSelect("mat-mg-ms-wrap", "mat-mg-ms-dd", mgNamesForFilter, "All Material Groups");
     }
     refreshMaterialView();
 
@@ -2215,6 +2223,8 @@ function renderBranch() {
       const selected  = (matWrap && matWrap._getSelected) ? matWrap._getSelected() : [];
       // selected values are "CODE — DESC" or just "CODE"; extract the code part before " — "
       const selCodes  = selected.map(v => v.split(" — ")[0].trim().toLowerCase());
+      const mgWrap      = document.getElementById("mat-mg-ms-wrap");
+      const selectedMgs = (mgWrap && mgWrap._getSelected) ? mgWrap._getSelected() : [];
       const metric    = document.getElementById("mat-metric").value;
       const sortMode  = document.getElementById("mat-sort").value;
       const mgFilter  = document.getElementById("mat-mgfilter").value;
@@ -2224,6 +2234,7 @@ function renderBranch() {
       let materials = Object.entries(matPlantMap)
         .filter(([mat, info]) => {
           if (mgFilter && info.valType !== mgFilter) return false;
+          if (selectedMgs.length > 0 && !selectedMgs.includes(info.group)) return false;
           if (selCodes.length > 0) {
             // Multi-select: match if material code is one of the selected codes
             return selCodes.includes(mat.toLowerCase());
