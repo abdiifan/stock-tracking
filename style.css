@@ -649,17 +649,6 @@ td.col-mat-desc-wrap { max-width: 280px; white-space: normal; line-height: 1.4; 
 /* ══════════════════════════════════════════════
    INCOMING SHELF LIFE
    ══════════════════════════════════════════════ */
-.isl-legend {
-  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: 0.6rem 1rem;
-  margin-bottom: 1rem; font-size: 0.77rem; color: var(--muted);
-}
-.isl-dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
-.isl-green  { background: var(--green); }
-.isl-yellow { background: var(--amber); }
-.isl-red    { background: var(--red); }
-.isl-grey   { background: var(--dim); border: 1px solid var(--border2); }
 .isl-filter-label { display: block; font-size: 0.63rem; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 3px; }
 .isl-flag-green  { color: var(--green); font-weight: 700; }
 .isl-flag-yellow { color: var(--amber); font-weight: 700; }
