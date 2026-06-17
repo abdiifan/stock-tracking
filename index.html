@@ -430,40 +430,43 @@
 
     <div class="kpi-row" id="conc-kpis"></div>
 
-    <!-- 1. Pie chart: value distribution by plant -->
-    <div class="conc-grid-2">
-      <div class="chart-box">
+    <!-- 2×2 side-by-side grid: all four panels -->
+    <div class="conc-quad-grid">
+
+      <!-- TOP-LEFT: 1. Overall Value Distribution by Plant (pie) -->
+      <div class="chart-box conc-quad-cell">
         <div class="section-header">📊 Overall Value Distribution by Plant</div>
         <div class="conc-chart-sub">Percentage share of total inventory value held per plant</div>
-        <div id="chart-conc-pie" style="min-height:320px"></div>
+        <div id="chart-conc-pie" style="min-height:300px;flex:1"></div>
       </div>
 
-      <!-- 2. Concentration Analysis summary -->
-      <div class="chart-box">
+      <!-- TOP-RIGHT: 2. Concentration Analysis -->
+      <div class="chart-box conc-quad-cell">
         <div class="section-header">🔍 Concentration Analysis</div>
         <div class="conc-chart-sub">How stock is spread across branches by material</div>
         <div id="conc-analysis-cards" style="margin-top:0.9rem"></div>
       </div>
-    </div>
 
-    <!-- 3. Highly Concentrated Items table -->
-    <div class="chart-box full" style="margin-top:1.2rem">
-      <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.4rem">
-        <span>⚠️ Highly Concentrated Items — Sole Branch Accumulation (&gt;80% in one plant)</span>
-        <span style="font-size:0.62rem;color:var(--muted)">Top items by total value · Quantity + Value basis</span>
+      <!-- BOTTOM-LEFT: 3. Highly Concentrated Items table -->
+      <div class="chart-box conc-quad-cell conc-quad-scroll">
+        <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.4rem">
+          <span>⚠️ Highly Concentrated Items — Sole Branch Accumulation (&gt;80% in one plant)</span>
+          <span style="font-size:0.62rem;color:var(--muted)">Qty + Value basis</span>
+        </div>
+        <div class="conc-legend" style="margin-bottom:0.85rem">
+          <span class="conc-dot" style="background:#f85149"></span><span>Critical &gt;95%</span>
+          <span class="conc-dot" style="background:#ffa657"></span><span>High 80–95%</span>
+        </div>
+        <div id="conc-table-wrap"></div>
       </div>
-      <div class="conc-legend" style="margin-bottom:0.85rem">
-        <span class="conc-dot" style="background:#f85149"></span><span>Critical &gt;95%</span>
-        <span class="conc-dot" style="background:#ffa657"></span><span>High 80–95%</span>
-      </div>
-      <div id="conc-table-wrap"></div>
-    </div>
 
-    <!-- 4. Branch spread bar chart -->
-    <div class="chart-box full" style="margin-top:1.2rem">
-      <div class="section-header">🌐 Branch Spread Distribution — Number of Plants per Material</div>
-      <div class="conc-chart-sub" style="margin-bottom:0.9rem">How many distinct plants hold each material (unrestricted stock only)</div>
-      <div id="chart-conc-spread" style="min-height:260px"></div>
+      <!-- BOTTOM-RIGHT: 4. Branch Spread Distribution bar chart -->
+      <div class="chart-box conc-quad-cell">
+        <div class="section-header">🌐 Branch Spread Distribution — Number of Plants per Material</div>
+        <div class="conc-chart-sub" style="margin-bottom:0.9rem">How many distinct plants hold each material (unrestricted stock only)</div>
+        <div id="chart-conc-spread" style="min-height:260px;flex:1"></div>
+      </div>
+
     </div>
   </section>
 
