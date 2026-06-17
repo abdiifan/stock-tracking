@@ -778,6 +778,7 @@ td.col-mat-desc-wrap { max-width: 280px; white-space: normal; line-height: 1.4; 
    ══════════════════════════════════════════════ */
 
 /* Two-column grid for pie + analysis */
+/* Kept for legacy compatibility */
 .conc-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -786,6 +787,33 @@ td.col-mat-desc-wrap { max-width: 280px; white-space: normal; line-height: 1.4; 
 }
 @media (max-width: 900px) {
   .conc-grid-2 { grid-template-columns: 1fr; }
+}
+
+/* ── Concentration 2×2 quad layout ── */
+.conc-quad-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 1.2rem;
+  align-items: start;
+}
+.conc-quad-cell {
+  display: flex;
+  flex-direction: column;
+  min-height: 340px;
+}
+/* Bottom-left table cell: scrollable so long tables don't blow out the row height */
+.conc-quad-scroll {
+  max-height: 480px;
+  overflow-y: auto;
+}
+@media (max-width: 960px) {
+  .conc-quad-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: unset;
+  }
+  .conc-quad-cell { min-height: unset; }
+  .conc-quad-scroll { max-height: unset; }
 }
 
 .conc-chart-sub {
