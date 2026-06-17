@@ -37,6 +37,7 @@
     <button class="nav-btn" data-page="branch">🏢 Branch Comparison</button>
     <button class="nav-btn" data-page="flow">📦 Zero Unrestricted Stock</button>
     <button class="nav-btn" data-page="incoming">🧪 Incoming Shelf Life</button>
+    <button class="nav-btn" data-page="concentration">🎯 Stock Concentration</button>
   </nav>
 
   <div class="sidebar-divider"></div>
@@ -408,6 +409,61 @@
       <div class="section-header" style="margin-bottom:0.5rem">Detailed Incoming Shelf Life Records</div>
       <div id="isl-count" class="alert-info" style="margin-bottom:0.7rem; display:none"></div>
       <div id="isl-table-wrap"></div>
+    </div>
+  </section>
+
+  <!-- ── STOCK CONCENTRATION ── -->
+  <section id="page-concentration" class="page" style="display:none">
+    <div class="page-header-row">
+      <div>
+        <div class="page-title">🎯 Stock Concentration</div>
+        <div class="page-subtitle">Distribution of inventory value and quantity across plants — identify branch monopolies and supply chain vulnerabilities</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="ms-wrap" id="ms-conc-mg"><button class="ms-btn" type="button">All Material Groups <span class="ms-arrow">▾</span></button><div class="ms-dropdown" id="ms-conc-mg-dd"></div></div>
+      <div class="ms-wrap" id="ms-conc-vt"><button class="ms-btn" type="button">All Material Types <span class="ms-arrow">▾</span></button><div class="ms-dropdown" id="ms-conc-vt-dd"></div></div>
+      <button type="button" class="apply-btn small" id="conc-filter-apply">Apply</button>
+      <button type="button" class="apply-btn secondary small" id="conc-filter-clear">Clear</button>
+    </div>
+
+    <div class="kpi-row" id="conc-kpis"></div>
+
+    <!-- 1. Pie chart: value distribution by plant -->
+    <div class="conc-grid-2">
+      <div class="chart-box">
+        <div class="section-header">📊 Overall Value Distribution by Plant</div>
+        <div class="conc-chart-sub">Percentage share of total inventory value held per plant</div>
+        <div id="chart-conc-pie" style="min-height:320px"></div>
+      </div>
+
+      <!-- 2. Concentration Analysis summary -->
+      <div class="chart-box">
+        <div class="section-header">🔍 Concentration Analysis</div>
+        <div class="conc-chart-sub">How stock is spread across branches by material</div>
+        <div id="conc-analysis-cards" style="margin-top:0.9rem"></div>
+      </div>
+    </div>
+
+    <!-- 3. Highly Concentrated Items table -->
+    <div class="chart-box full" style="margin-top:1.2rem">
+      <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.4rem">
+        <span>⚠️ Highly Concentrated Items — Sole Branch Accumulation (&gt;80% in one plant)</span>
+        <span style="font-size:0.62rem;color:var(--muted)">Top items by total value · Quantity + Value basis</span>
+      </div>
+      <div class="conc-legend" style="margin-bottom:0.85rem">
+        <span class="conc-dot" style="background:#f85149"></span><span>Critical &gt;95%</span>
+        <span class="conc-dot" style="background:#ffa657"></span><span>High 80–95%</span>
+      </div>
+      <div id="conc-table-wrap"></div>
+    </div>
+
+    <!-- 4. Branch spread bar chart -->
+    <div class="chart-box full" style="margin-top:1.2rem">
+      <div class="section-header">🌐 Branch Spread Distribution — Number of Plants per Material</div>
+      <div class="conc-chart-sub" style="margin-bottom:0.9rem">How many distinct plants hold each material (unrestricted stock only)</div>
+      <div id="chart-conc-spread" style="min-height:260px"></div>
     </div>
   </section>
 
