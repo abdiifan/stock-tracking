@@ -2884,12 +2884,17 @@ function _islPopulateFilters() {
   // which shifts UTC midnight dates by one day in UTC+3 (Ethiopia).
 
   // Posting dates — sorted descending (most recent first)
-  const dates = [...new Set(
+  // FIX-ISL-TODAY: always include today's date (system/network date) in the
+  // list, even if no received-goods row has been posted for it yet — so the
+  // filter option exists in advance of today's document being uploaded.
+  const dateSet = new Set(
     incomingRaw
       .map(r => r._postingDate)
       .filter(d => d instanceof Date)
       .map(d => fmtLocalDate(d))
-  )].sort().reverse();
+  );
+  dateSet.add(fmtLocalDate(new Date()));
+  const dates = [...dateSet].sort().reverse();
 
   const dateEl = document.getElementById("isl-filter-date");
   if (dateEl) {
