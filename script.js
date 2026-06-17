@@ -60,7 +60,7 @@ let stFilterState      = { purDoc: "", supPlant: "" };  // filter state
 
 // Incoming Shelf Life — received goods file state
 let incomingRaw        = [];   // raw rows from received goods xlsx
-const islFilterState   = { date: "", valType: "", sloc: "", plant: "", flag: "", materials: [] };
+const islFilterState   = { date: "", valType: "", sloc: "", mg: "", materials: [] };
 
 // Page-level filter state — now arrays for multi-select support
 const pageFilters = {
@@ -1561,7 +1561,7 @@ function renderPhantomAlert(containerId, df) {
   // On transit page, the full phantom section is rendered separately via
   // renderPhantomTable — so the alert only needs a short "jump to section" link.
   const actionHtml = isTransitPage
-    ? `<a class="phantom-alert-link" style="white-space:nowrap" onclick="document.getElementById('transit-phantom-section').scrollIntoView({behavior:'smooth'})">View unverified items at bottom ↓</a>`
+    ? `<a class="phantom-alert-link" style="white-space:nowrap" onclick="document.querySelector('.transit-tab-btn[data-tab=unverified]').click()">View unverified items →</a>`
     : `<button class="phantom-alert-toggle" id="${tableId}-btn" onclick="(function(){
         var tbl=document.getElementById('${tableId}');
         var btn=document.getElementById('${tableId}-btn');
@@ -2178,11 +2178,11 @@ function renderBranch() {
               <option value="TotalValue">Total Value (ETB)</option>
               <option value="Unrestricted">Unrestricted Value (ETB)</option>
               <option value="Transit">Transit Value (ETB)</option>
-              <option value="QC">QC Value (ETB)</option>
+              <option value="QC">Stock in Quality Inspection Value (ETB)</option>
               <option value="TotalQty">Total Quantity</option>
-              <option value="UnrestrictedQty">Available Quantity</option>
+              <option value="UnrestrictedQty">Unrestricted Stock Quantity</option>
               <option value="TransitQty">Transit Quantity</option>
-              <option value="QCQty">QC Quantity</option>
+              <option value="QCQty">Stock in Quality Inspection Quantity</option>
             </select>
           </div>
           <div>
@@ -2205,10 +2205,21 @@ function renderBranch() {
             </select>
           </div>
           <button id="mat-apply" class="apply-btn">Apply</button>
+          <button id="mat-clear" class="apply-btn secondary">Clear</button>
         </div>
         <div id="mat-chart-wrap" style="margin-bottom:1rem"></div>
         <div id="mat-table-wrap"></div>`;
       document.getElementById("mat-apply").addEventListener("click", refreshMaterialView);
+      document.getElementById("mat-clear").addEventListener("click", () => {
+        const matWrap2 = document.getElementById("mat-ms-wrap");
+        const mgWrap2  = document.getElementById("mat-mg-ms-wrap");
+        if (matWrap2 && matWrap2._clearSelected) matWrap2._clearSelected();
+        if (mgWrap2  && mgWrap2._clearSelected)  mgWrap2._clearSelected();
+        document.getElementById("mat-metric").value    = "TotalValue";
+        document.getElementById("mat-mgfilter").value  = "";
+        document.getElementById("mat-sort").value      = "total_desc";
+        refreshMaterialView();
+      });
       // Build the material multi-select after HTML is in DOM
       buildMultiSelect("mat-ms-wrap", "mat-ms-dd", allMatOptions, "All Materials");
       // Material Group multi-select — lets users narrow the comparison to one or
@@ -2353,9 +2364,9 @@ function renderFlow() {
     {key:"Material Group Name",       label:"Material Group"},
     {key:"Plant Name",                label:"Plant"},
     {key:"Unrestricted Stock",        label:"Avail Qty",          fmt:(v,r)=>fmtQty(getMappedQty(r,"Unrestricted Stock")),          rawKey:"Unrestricted Stock",        cellClass:"col-qty"},
-    {key:"Stock in Transit",          label:"In Transit",          fmt:(v,r)=>fmtQty(getMappedQty(r,"Stock in Transit")),            rawKey:"Stock in Transit",          cellClass:"col-qty"},
+    {key:"Stock in Transit",          label:"In Transit",          fmt:(v,r)=>fmtQty(getVerifiedTransitQty(r)),                       rawKey:"Stock in Transit",          cellClass:"col-qty"},
     {key:"Stock in Quality Inspection",label:"In QC",             fmt:(v,r)=>fmtQty(getMappedQty(r,"Stock in Quality Inspection")), rawKey:"Stock in Quality Inspection",cellClass:"col-qty"},
-    {key:"Value of Stock in Transit", label:"Transit Value (ETB)", fmt:(v,r)=>fmtETB(getMappedVal(r,"Value of Stock in Transit")),  rawKey:"Value of Stock in Transit",  cellClass:"col-val"},
+    {key:"Value of Stock in Transit", label:"Transit Value (ETB)", fmt:(v,r)=>fmtETB(getVerifiedTransitVal(r)),                       rawKey:"Value of Stock in Transit",  cellClass:"col-val"},
     {key:"_purDoc",                   label:"Purchasing Document"},
     {key:"_supPlant",                 label:"Supplying Plant"},
     {key:"_alert",                    label:"Alert", raw:true},
@@ -2366,9 +2377,9 @@ function renderFlow() {
       ...r,
       _purDoc:   info.purDoc,
       _supPlant: info.supPlant,
-      _alert: getMappedQty(r,"Stock in Transit") > 0 && getMappedQty(r,"Stock in Quality Inspection") > 0
+      _alert: getVerifiedTransitQty(r) > 0 && getMappedQty(r,"Stock in Quality Inspection") > 0
         ? "<span class='badge badge-red'>Transit+QC</span>"
-        : getMappedQty(r,"Stock in Transit") > 0
+        : getVerifiedTransitQty(r) > 0
         ? "<span class='badge badge-amber'>Awaiting Transit</span>"
         : "<span class='badge badge-amber'>Awaiting QC Release</span>",
     };
@@ -2383,7 +2394,7 @@ function renderFlow() {
     const k = r["Plant Name"] || "(Blank)";
     if (!plantStockMap[k]) plantStockMap[k] = { "Plant Name": k, avail:0, transit:0, qc:0 };
     plantStockMap[k].avail   += getMappedQty(r,"Unrestricted Stock");
-    plantStockMap[k].transit += _hasVerifiedTransit(r) ? getMappedQty(r,"Stock in Transit") : 0;
+    plantStockMap[k].transit += getVerifiedTransitQty(r);
     plantStockMap[k].qc      += getMappedQty(r,"Stock in Quality Inspection");
   });
   const plantAgg = sortBy(Object.values(plantStockMap), "avail");
@@ -2564,6 +2575,7 @@ function loadIncomingFile(file) {
           r._inv_slocs    = "—";
           r._inv_totalQty = 0;
           r._inv_expiryDate = null;
+          r._inv_materialGroup = "—";
           r._inInventory    = null;
         });
 
@@ -2652,9 +2664,15 @@ function _islCrossMatchInventory() {
 
   // Build lookup map from inventory (all branches): key -> { expiry, plants:Set, slocs:Set, totalQty }
   const invMap = new Map();
+  // Material Group is a property of the material itself (not plant/batch-specific),
+  // so it's looked up by Material code alone.
+  const matGroupMap = new Map();
   rawDf.forEach(r => {
     const mat   = String(r["Material"] || "").trim().toUpperCase();
     const batch = String(r["Batch"]    || "").trim().toUpperCase();
+    if (mat && !matGroupMap.has(mat) && r["Material Group Name"]) {
+      matGroupMap.set(mat, r["Material Group Name"]);
+    }
     if (!mat || !batch) return;
     const key = `${mat}||${batch}`;
     let entry = invMap.get(key);
@@ -2677,6 +2695,7 @@ function _islCrossMatchInventory() {
     const key   = `${mat}||${batch}`;
     const entry = (mat && batch) ? invMap.get(key) : undefined;
     r._inInventory = !!entry;
+    r._inv_materialGroup = matGroupMap.get(mat) || "—";
 
     if (entry) {
       r._inv_expiryDate = entry.expiry;
@@ -2910,19 +2929,13 @@ function _islPopulateFilters() {
       slocs.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join("");
   }
 
-  // BUG-ISL-4 FIX: plant filter — populated from inventory match (_inv_plants)
-  // so user can filter to see which received batches are currently at a branch
-  const plantSet = new Set();
-  incomingRaw.forEach(r => {
-    if (r._inv_plants && r._inv_plants !== "—") {
-      r._inv_plants.split(" · ").forEach(p => { if (p) plantSet.add(p.trim()); });
-    }
-  });
-  const plants = [...plantSet].sort();
-  const plantEl = document.getElementById("isl-filter-plant");
-  if (plantEl) {
-    plantEl.innerHTML = `<option value="">All Plants</option>` +
-      plants.map(p => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join("");
+  // Material Group filter — populated from inventory-derived material group
+  // (each material's group looked up from the main inventory file)
+  const mgs = [...new Set(incomingRaw.map(r => r._inv_materialGroup).filter(g => g && g !== "—"))].sort();
+  const mgEl = document.getElementById("isl-filter-mg");
+  if (mgEl) {
+    mgEl.innerHTML = `<option value="">All Material Groups</option>` +
+      mgs.map(g => `<option value="${escHtml(g)}">${escHtml(g)}</option>`).join("");
   }
 
   // Material multi-select — replaces the old free-text Material Search box
@@ -2939,7 +2952,7 @@ function _islPopulateFilters() {
 }
 
 function _islGetFiltered() {
-  const { date, valType, sloc, plant, flag, materials } = islFilterState;
+  const { date, valType, sloc, mg, materials } = islFilterState;
   const matCodes = (materials || []).map(v => String(v).split(" — ")[0].trim().toLowerCase());
   return incomingRaw.filter(r => {
     // BUG-ISL-5 FIX: compare using local date string (not toISOString)
@@ -2952,12 +2965,7 @@ function _islGetFiltered() {
       const rs = String(r["Storage Location"] || "").trim();
       if (rs !== sloc) return false;
     }
-    // BUG-ISL-4 FIX: plant filter — check if any _inv_plants entry matches
-    if (plant) {
-      const rp = r._inv_plants || "";
-      if (!rp.split(" · ").some(p => p.trim() === plant)) return false;
-    }
-    if (flag && r._receiptFlag !== flag) return false;
+    if (mg && r._inv_materialGroup !== mg) return false;
     // Material filter — replaces the old free-text Material Search box
     if (matCodes.length && !matCodes.includes(String(r["Material"] || "").trim().toLowerCase())) return false;
     return true;
@@ -3222,16 +3230,15 @@ document.addEventListener("DOMContentLoaded", () => {
     islFilterState.date    = (document.getElementById("isl-filter-date")    || {}).value || "";
     islFilterState.valType = (document.getElementById("isl-filter-valtype") || {}).value || "";
     islFilterState.sloc    = (document.getElementById("isl-filter-sloc")    || {}).value || "";
-    islFilterState.plant   = (document.getElementById("isl-filter-plant")   || {}).value || "";
-    islFilterState.flag    = (document.getElementById("isl-filter-flag")    || {}).value || "";
+    islFilterState.mg      = (document.getElementById("isl-filter-mg")      || {}).value || "";
     const matWrap = document.getElementById("ms-isl-mat");
     islFilterState.materials = (matWrap && matWrap._getSelected) ? matWrap._getSelected() : [];
     renderIncomingShelfLife();
   });
   document.getElementById("isl-filter-clear").addEventListener("click", () => {
-    islFilterState.date = islFilterState.valType = islFilterState.sloc = islFilterState.plant = islFilterState.flag = "";
+    islFilterState.date = islFilterState.valType = islFilterState.sloc = islFilterState.mg = "";
     islFilterState.materials = [];
-    ["isl-filter-date","isl-filter-valtype","isl-filter-sloc","isl-filter-plant","isl-filter-flag"].forEach(id => {
+    ["isl-filter-date","isl-filter-valtype","isl-filter-sloc","isl-filter-mg"].forEach(id => {
       const el = document.getElementById(id); if (el) el.value = "";
     });
     const matWrap = document.getElementById("ms-isl-mat");
