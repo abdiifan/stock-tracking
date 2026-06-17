@@ -2099,6 +2099,15 @@ function renderBranch() {
     return sel.length > 0 ? sel : others;
   }
 
+  // Wire Clear button — deselects all branches and re-renders showing all branches
+  const branchClearBtn = document.getElementById("branch-select-clear");
+  if (branchClearBtn) {
+    branchClearBtn.addEventListener("click", () => {
+      if (branchWrap && branchWrap._clearSelected) branchWrap._clearSelected();
+      updateBranchCharts();
+    });
+  }
+
   // ── TAB 1: Total Value ──
   function updateBranchCharts() {
     const selected = getSelectedBranches();
