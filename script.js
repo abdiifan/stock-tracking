@@ -3181,10 +3181,16 @@ function renderIncomingShelfLife() {
 // ═══════════════════════════════════════════════════════════════════════════
 function renderConcentration() {
   // ── Build filtered dataset (no plant filter — concentration is cross-plant) ──
-  const f        = pageFilters["concentration"] || {};
-  const base     = getReconciledBase();
-  const mgs      = f.mgs      || [];
-  const valTypes = f.valTypes || [];
+  const f           = pageFilters["concentration"] || {};
+  const base        = getReconciledBase();
+  const mgs         = f.mgs      || [];
+  const valTypes    = f.valTypes || [];
+  // FIX-CONC-MAP: honour mapping table state — only use _mappedMaterial as key
+  // when a mapping file is actually loaded, otherwise fall back to raw Material.
+  // Without this guard, unmapped rows (where _mappedMaterial === original code)
+  // would be counted correctly, but the intent is unclear and inconsistent with
+  // aggregateByMappedMaterial which is the canonical pattern across all pages.
+  const useMapped   = mappingTable.size > 0;
 
   const df = base.filter(r =>
     !isNonMedicalCode(r["Material"]) &&
@@ -3196,6 +3202,9 @@ function renderConcentration() {
     (!mgs.length      || mgs.includes(r["Material Group Name"])) &&
     (!valTypes.length || valTypes.includes(getValuationType(r)))
   );
+
+  // Mapping banner (no-ops when no mapping loaded)
+  renderMappingBanner("conc-mapping-banner");
 
   if (!df.length) {
     document.getElementById("conc-kpis").innerHTML = "";
@@ -3221,14 +3230,26 @@ function renderConcentration() {
     .sort((a, b) => b.val - a.val);
 
   // ── 2. Per-material, per-plant aggregation (unrestricted qty + value) ──
-  // Key: material code, Value: map of plantName → { qty, val }
+  // FIX-CONC-MAP: key by _mappedMaterial only when mapping is active — this is
+  // the single change that makes two SAP codes mapping to the same target drug
+  // collapse into one row. Without useMapped guard they stayed separate because
+  // unmapped rows' _mappedMaterial equals their original code (no merger).
   const matPlantMap = {};
   df.forEach(r => {
-    const mat   = r._mappedMaterial || r["Material"];
-    const desc  = r._mappedDesc    || r["Material Description"] || "";
-    const plant = r["Plant Name"]  || "(Blank)";
+    const mat   = useMapped ? (r._mappedMaterial || r["Material"]) : r["Material"];
+    const desc  = useMapped ? (r._mappedDesc    || r["Material Description"] || "") : (r["Material Description"] || "");
+    const plant = r["Plant Name"] || "(Blank)";
+    const orig  = r._origMaterial || r["Material"];
     if (!mat) return;
-    if (!matPlantMap[mat]) matPlantMap[mat] = { desc, plants: {}, totalQty: 0, totalVal: 0 };
+    if (!matPlantMap[mat]) {
+      matPlantMap[mat] = {
+        desc,
+        plants:    {},
+        totalQty:  0,
+        totalVal:  0,
+        origCodes: new Set(),   // FIX-CONC-MAP: track all original SAP codes merged here
+      };
+    }
     const qty = getMappedQty(r, "Unrestricted Stock");
     const val = getMappedVal(r, "Value of Unrestricted Stock");
     if (!matPlantMap[mat].plants[plant]) matPlantMap[mat].plants[plant] = { qty: 0, val: 0 };
@@ -3236,6 +3257,7 @@ function renderConcentration() {
     matPlantMap[mat].plants[plant].val += val;
     matPlantMap[mat].totalQty += qty;
     matPlantMap[mat].totalVal += val;
+    if (orig && orig !== mat) matPlantMap[mat].origCodes.add(orig);
   });
 
   // ── 3. Concentration classification ──
@@ -3249,7 +3271,8 @@ function renderConcentration() {
     const topVal       = topPlant ? topPlant[1].val : 0;
     const pctQty       = info.totalQty > 0 ? (topQty / info.totalQty) * 100 : 0;
     const pctVal       = info.totalVal > 0 ? (topVal / info.totalVal) * 100 : 0;
-    return { mat, desc: info.desc, plantCount, topPlantName, topQty, topVal, pctQty, pctVal, totalQty: info.totalQty, totalVal: info.totalVal };
+    const origCodes    = [...info.origCodes].sort().join(", ");
+    return { mat, desc: info.desc, plantCount, topPlantName, topQty, topVal, pctQty, pctVal, totalQty: info.totalQty, totalVal: info.totalVal, origCodes };
   }).filter(r => r.totalQty > 0); // only materials with unrestricted stock
 
   // Band classification
@@ -3261,12 +3284,16 @@ function renderConcentration() {
   // ── KPIs ──
   const topPlantPct = plantValArr.length > 0 ? plantValArr[0].pct : 0;
   const totalMats   = matConcentration.length;
+  // FIX-CONC-MAP: count unique materials by mapped code when mapping is active
+  const uniqueMatCount = useMapped
+    ? new Set(df.map(r => r._mappedMaterial || r["Material"])).size
+    : new Set(df.map(r => r["Material"])).size;
   setKpis("conc-kpis", [
     ["Total Unique Plants",      new Set(df.map(r => r["Plant Name"])).size.toLocaleString(),        "With unrestricted stock",       "blue"],
     ["Sole-Branch Materials",    sole.length.toLocaleString(),   `${totalMats > 0 ? ((sole.length/totalMats)*100).toFixed(0) : 0}% of materials`,  "red"],
     ["Few-Branch Materials",     few.length.toLocaleString(),    "Held in 2–4 plants",               "amber"],
     ["Top Plant Share",          topPlantPct.toFixed(1) + "%",   plantValArr[0]?.name || "—",        "purple"],
-    ["Unique Materials Tracked", totalMats.toLocaleString(),     "Unrestricted stock only",          "green"],
+    ["Unique Materials Tracked", uniqueMatCount.toLocaleString(), useMapped ? "Standardized (merged)" : "Unrestricted stock only", "green"],
   ]);
 
   // ── Pie chart: value by plant ──
@@ -3320,6 +3347,16 @@ function renderConcentration() {
     const cols = [
       { key: "mat",         label: "Material Code",    fmt: (v, r) => renderMatCode(v, r), raw: true, cellClass: "col-mat-code-wrap" },
       { key: "desc",        label: "Description",      fmt: (v)    => `<span class="col-mat-desc">${escHtml(String(v||""))}</span>`, raw: true, cellClass: "col-mat-desc-wrap" },
+      // FIX-CONC-MAP: show merged SAP codes column only when mapping is active
+      ...(useMapped ? [{
+        key: "origCodes",
+        label: "Merged SAP Codes",
+        fmt: (v) => v
+          ? v.split(", ").map(c => `<span class="conc-orig-pill">${escHtml(c)}</span>`).join(" ")
+          : '<span style="color:var(--dim);font-size:0.65rem">—</span>',
+        raw: true,
+        cellClass: "col-mat-code-wrap",
+      }] : []),
       { key: "topPlantName",label: "Dominant Plant",   fmt: (v)    => `<span class="conc-plant-pill" title="${escHtml(String(v||""))}">${escHtml(String(v||""))}</span>`, raw: true },
       { key: "topQty",      label: "Qty in Plant",     fmt: fmtQty, rawKey: "topQty",   cellClass: "col-qty" },
       { key: "totalQty",    label: "Total Qty",        fmt: fmtQty, rawKey: "totalQty", cellClass: "col-qty" },
@@ -3339,6 +3376,7 @@ function renderConcentration() {
     const rows = topConcentrated.map(r => ({
       mat:         r.mat,
       desc:        r.desc,
+      origCodes:   r.origCodes || "",
       topPlantName:r.topPlantName,
       topQty:      r.topQty,
       totalQty:    r.totalQty,
