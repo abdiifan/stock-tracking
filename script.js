@@ -26,6 +26,46 @@ function injectDlButtons(rowId, onCsv, onXlsx) {
 
 // NOTE: Exclusion rules (isNonMedicalCode, isNonMedicalGroup) are loaded from
 // filters.js which MUST be included before this script in the HTML.
+/**
+ * Shows a brief toast notification confirming the Branch Comparison drilldown.
+ * Auto-dismisses after 4 seconds.
+ */
+function showSpreadDrilldownToast(count, groupLabel) {
+  // Remove any existing toast first
+  const existing = document.getElementById("spread-drilldown-toast");
+  if (existing) existing.remove();
+
+  const toast = document.createElement("div");
+  toast.id = "spread-drilldown-toast";
+  toast.innerHTML = `
+    <span style="font-size:1.1em">🎯</span>
+    <span>Showing <strong>${count}</strong> material${count !== 1 ? "s" : ""} stocked in <strong>${escHtml(groupLabel)}</strong> — filtered from Stock Concentration</span>
+    <button onclick="this.parentElement.remove()" style="margin-left:auto;background:none;border:none;color:inherit;cursor:pointer;font-size:1rem;opacity:0.7;padding:0 0.25rem" title="Dismiss">✕</button>
+  `;
+  Object.assign(toast.style, {
+    position:       "fixed",
+    bottom:         "1.5rem",
+    left:           "50%",
+    transform:      "translateX(-50%)",
+    background:     "var(--blue, #3a8fd4)",
+    color:          "#fff",
+    padding:        "0.65rem 1.1rem",
+    borderRadius:   "8px",
+    boxShadow:      "0 4px 18px rgba(0,0,0,0.35)",
+    display:        "flex",
+    alignItems:     "center",
+    gap:            "0.6rem",
+    fontSize:       "0.82rem",
+    fontFamily:     "Inter, sans-serif",
+    zIndex:         "9999",
+    maxWidth:       "520px",
+    animation:      "fadeInUp 0.25s ease",
+    pointerEvents:  "auto",
+  });
+  document.body.appendChild(toast);
+  setTimeout(() => { if (toast.parentElement) toast.remove(); }, 4500);
+}
+
 // ── THEME-AWARE PLOTLY LAYOUT ─────────────────────────────────────────────
 // Reads CSS vars at call time so chart colours match the active theme.
 function getPlotlyThemeColors() {
@@ -73,6 +113,11 @@ const pageFilters = {
   incoming:  {},
   concentration: { mgs: [], valTypes: [] },
 };
+
+// ── SPREAD CHART DRILLDOWN STATE ──────────────────────────────────────────
+// Stores the last matConcentration array from renderConcentration() so that a
+// bar-click can hand off the selected plant-count group to Branch Comparison.
+let _lastSpreadDrilldown = null;   // { plantCount, matCodes[] } | null
 
 // ── MATERIAL STANDARDIZATION MAPPING STATE ─────────────────────────────────
 // mappingTable: Map<sourceCode → { targetCode, targetDesc, factor }>
@@ -2258,6 +2303,42 @@ function renderBranch() {
       // to / instead of picking individual materials.
       buildMultiSelect("mat-mg-ms-wrap", "mat-mg-ms-dd", mgNamesForFilter, "All Material Groups");
     }
+
+    // ── Spread-chart drilldown: auto-select materials from the clicked group ──
+    // _lastSpreadDrilldown is set by the Branch Spread bar-click handler in
+    // renderConcentration(). We consume it once here and clear it so a manual
+    // page-revisit doesn't re-apply a stale selection.
+    if (_lastSpreadDrilldown) {
+      const { plantCount, matCodes } = _lastSpreadDrilldown;
+      _lastSpreadDrilldown = null;   // consume — one-shot
+
+      const matWrapEl = document.getElementById("mat-ms-wrap");
+      const matDdEl   = document.getElementById("mat-ms-dd");
+      if (matWrapEl && matDdEl) {
+        // Clear any existing selection first
+        if (matWrapEl._clearSelected) matWrapEl._clearSelected();
+
+        // The multi-select options are formatted as "CODE — DESC" or just "CODE".
+        // We need to tick every checkbox whose value starts with one of our codes.
+        const codeSet = new Set(matCodes.map(c => String(c).trim().toUpperCase()));
+        let matched = 0;
+        matDdEl.querySelectorAll("input[type=checkbox]").forEach(cb => {
+          const cbCode = cb.value.split(" — ")[0].trim().toUpperCase();
+          if (codeSet.has(cbCode)) {
+            cb.checked = true;
+            cb.dispatchEvent(new Event("change"));
+            matched++;
+          }
+        });
+
+        // Show a transient toast so the user knows why the filter changed
+        const label = plantCount === 1
+          ? "1 plant (sole branch)"
+          : `${plantCount} plant${plantCount > 1 ? "s" : ""}`;
+        showSpreadDrilldownToast(matched, label);
+      }
+    }
+
     refreshMaterialView();
 
     function refreshMaterialView() {
@@ -3458,22 +3539,58 @@ function renderConcentration() {
     k === 1 ? "1 plant\n(sole)" : `${k} plant${k > 1 ? "s" : ""}`
   );
 
+  // Build a lookup: plantCount → array of material codes (used by click handler)
+  const _spreadByPlantCount = {};
+  matConcentration.forEach(r => {
+    if (!_spreadByPlantCount[r.plantCount]) _spreadByPlantCount[r.plantCount] = [];
+    _spreadByPlantCount[r.plantCount].push(r.mat);
+  });
+
   Plotly.newPlot("chart-conc-spread", [{
     type: "bar",
     x: spreadLabels,
     y: spreadCounts,
-    marker: { color: spreadColors },
-    hovertemplate: "<b>%{x}</b><br>%{y} material(s)<extra></extra>",
+    marker: {
+      color: spreadColors,
+      line: { color: "rgba(255,255,255,0.15)", width: 1 },
+    },
+    hovertemplate: "<b>%{x}</b><br>%{y} material(s)<br><i>Click to explore in Branch Comparison →</i><extra></extra>",
     text: spreadCounts,
     textposition: "outside",
     textfont: { size: 10 },
+    customdata: spreadKeys,   // parallel array: raw plant-count number for each bar
   }], pl({
     height: 300,
     margin: { l: 20, r: 20, t: 30, b: 70 },
-    xaxis: { title: { text: "Number of plants stocking the material", font: { size: 10 } }, tickfont: { size: 10 } },
+    xaxis: { title: { text: "Number of plants stocking the material  ·  Click a bar to explore in Branch Comparison →", font: { size: 10 } }, tickfont: { size: 10 } },
     yaxis: { title: { text: "Materials", font: { size: 10 } }, tickformat: ",d" },
     showlegend: false,
   }), PLOTLY_CONFIG);
+
+  // ── Drilldown: clicking a bar navigates to Branch Comparison ──────────────
+  // We attach the listener to the Plotly div directly; the handler is replaced on
+  // every renderConcentration() call so stale closures over old data never fire.
+  const spreadDiv = document.getElementById("chart-conc-spread");
+  // Plotly sets cursor to 'pointer' on bar hover automatically but we make it
+  // explicit so users see the affordance even before hovering over a bar.
+  spreadDiv.style.cursor = "pointer";
+
+  spreadDiv.on("plotly_click", function(eventData) {
+    const pt = eventData && eventData.points && eventData.points[0];
+    if (!pt) return;
+
+    // pt.customdata is the raw plantCount number we stored above
+    const clickedCount = pt.customdata;
+    const mats = _spreadByPlantCount[clickedCount];
+    if (!mats || !mats.length) return;
+
+    // Stash drilldown payload so renderBranch can read it after navigation
+    _lastSpreadDrilldown = { plantCount: clickedCount, matCodes: mats };
+
+    // Navigate to Branch Comparison — renderPage calls renderBranch() which
+    // rebuilds the DOM; we hook in once the tab/filter UI is ready.
+    renderPage("branch");
+  });
 }
 
 const PAGE_RENDERERS = {
