@@ -5,18 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EPSS Stock-Multiple — Inventory Management</title>
   <style>
-    .brand-icon img { height: 44px; width: auto; display: block; }
-    .landing-logo img { height: 90px; width: auto; display: block; margin: 0 auto 0.5rem; }
+    .brand-icon img { height: 38px; width: auto; display: block; }
+    .landing-logo img { height: 86px; width: auto; display: block; margin: 0 auto 0.5rem; }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
 </head>
 <body>
 
+<!-- Mobile overlay -->
+<div id="sidebar-overlay"></div>
+
+<!-- Mobile menu button -->
+<button id="mobile-menu-btn" aria-label="Open navigation menu" title="Open menu">☰</button>
 
 <!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
 <aside id="sidebar">
@@ -24,20 +29,36 @@
     <span class="brand-icon"><img src="epss-logo.png" alt="EPSS Logo" /></span>
     <div>
       <div class="brand-name">Stock-Multiple</div>
-      <div class="brand-sub">INVENTORY MANAGEMENT</div>
+      <div class="brand-sub">Inventory Management</div>
     </div>
   </div>
 
   <nav id="nav">
-    <div class="nav-label">NAVIGATION</div>
-    <button class="nav-btn active" data-page="dashboard">📊 Dashboard</button>
-    <button class="nav-btn" data-page="transit">🚚 Stock in Transit</button>
-    <button class="nav-btn" data-page="expiry">⏰ Expiry Watchlist</button>
-    <button class="nav-btn" data-page="qc">🔬 Quality Inspection</button>
-    <button class="nav-btn" data-page="branch">🏢 Branch Comparison</button>
-    <button class="nav-btn" data-page="flow">📦 Zero Unrestricted Stock</button>
-    <button class="nav-btn" data-page="incoming">🧪 Shelf Life Lookup</button>
-    <button class="nav-btn" data-page="concentration">🎯 Stock Concentration</button>
+    <div class="nav-label">Navigation</div>
+    <button class="nav-btn active" data-page="dashboard">
+      <span class="nav-icon">📊</span> Dashboard
+    </button>
+    <button class="nav-btn" data-page="transit">
+      <span class="nav-icon">🚚</span> Stock in Transit
+    </button>
+    <button class="nav-btn" data-page="expiry">
+      <span class="nav-icon">⏰</span> Expiry Watchlist
+    </button>
+    <button class="nav-btn" data-page="qc">
+      <span class="nav-icon">🔬</span> Quality Inspection
+    </button>
+    <button class="nav-btn" data-page="branch">
+      <span class="nav-icon">🏢</span> Branch Comparison
+    </button>
+    <button class="nav-btn" data-page="flow">
+      <span class="nav-icon">📦</span> Zero Unrestricted
+    </button>
+    <button class="nav-btn" data-page="incoming">
+      <span class="nav-icon">🧪</span> Shelf Life Lookup
+    </button>
+    <button class="nav-btn" data-page="concentration">
+      <span class="nav-icon">🎯</span> Stock Concentration
+    </button>
   </nav>
 
   <div class="sidebar-divider"></div>
@@ -49,9 +70,9 @@
   <div id="fileStatus"></div>
 
   <div class="sidebar-divider"></div>
-  <div class="upload-label">Received Goods (Shelf Life Lookup)</div>
+  <div class="upload-label">Received Goods (Shelf Life)</div>
   <label class="upload-btn incoming-upload-btn" for="incomingFileInput">
-    <span id="incomingUploadBtnText">📥 Upload Received Goods Excel</span>
+    <span id="incomingUploadBtnText">📥 Upload Received Goods</span>
     <input type="file" id="incomingFileInput" accept=".xlsx,.xls" />
   </label>
   <div id="incomingFileStatus"></div>
@@ -74,10 +95,10 @@
 
 </aside>
 
-<!-- Theme Toggle (top right) -->
+<!-- Theme Toggle -->
 <button id="theme-toggle" title="Toggle dark / light mode">
   <span class="theme-toggle-icon" id="theme-icon">🌙</span>
-  <span class="theme-toggle-label" id="theme-label">Dark Mode</span>
+  <span class="theme-toggle-label" id="theme-label">Dark</span>
   <div class="theme-toggle-track">
     <div class="theme-toggle-thumb"></div>
   </div>
@@ -86,12 +107,14 @@
 <!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
 <main id="main">
 
-
-
+  <!-- LANDING -->
   <div id="landingView">
     <div class="landing-logo"><img src="epss-logo.png" alt="EPSS Logo" /></div>
     <h1 class="landing-title">Stock-MultipleTrack</h1>
-    <p class="landing-desc">Upload your pharmaceutical inventory Excel file from the sidebar to begin analysis.<br/>All values are displayed in <strong style="color:#58a6ff">Ethiopian Birr (ETB)</strong>.</p>
+    <p class="landing-desc">
+      Upload your pharmaceutical inventory Excel file from the sidebar to begin analysis.<br/>
+      All values are displayed in <strong style="color:var(--blue)">Ethiopian Birr (ETB)</strong>.
+    </p>
     <div class="landing-features">
       <div class="feature-chip">🚚 Transit Analysis</div>
       <div class="feature-chip">⏰ Expiry Watchlist</div>
@@ -106,7 +129,10 @@
   <!-- ── DASHBOARD ── -->
   <section id="page-dashboard" class="page" style="display:none">
     <div class="page-header-row">
-      <div><div class="page-title">Dashboard Overview</div><div class="page-subtitle">Aggregated inventory metrics across all plants and material groups</div></div>
+      <div>
+        <div class="page-title">📊 Dashboard Overview</div>
+        <div class="page-subtitle">Aggregated inventory metrics across all plants and material groups</div>
+      </div>
     </div>
     <div class="filter-bar">
       <div class="ms-wrap" id="ms-dash-plant"><button class="ms-btn" type="button">All Plants <span class="ms-arrow">▾</span></button><div class="ms-dropdown" id="ms-dash-plant-dd"></div></div>
@@ -118,18 +144,21 @@
     <div class="kpi-row" id="dash-kpis"></div>
     <div id="dash-phantom-alert"></div>
     <div id="dash-mapping-banner"></div>
-    <div class="chart-box full"><div class="section-header">Inventory Value &amp; Quantity by Plant</div><div id="chart-plant-val"></div></div>
+    <div class="chart-box full">
+      <div class="section-header">Inventory Value &amp; Quantity by Plant</div>
+      <div id="chart-plant-val"></div>
+    </div>
     <div class="chart-box full">
       <div class="section-header" style="display:flex;align-items:center;gap:0.5rem;padding-bottom:0.25rem">
         <span style="font-size:1.1em">⚠️</span>
         <span>Near-Expiry Risk by Plant</span>
-        <span style="font-size:0.7rem;font-weight:400;color:#8b949e;margin-left:0.25rem">— Items expiring within 6 months · Value &amp; Quantity at risk</span>
+        <span style="font-size:0.7rem;font-weight:400;color:var(--muted);margin-left:0.25rem">— Items expiring within 6 months · Value &amp; Quantity at risk</span>
       </div>
-      <div style="display:flex;gap:1.2rem;margin-bottom:0.6rem;font-size:0.72rem;color:#8b949e">
+      <div style="display:flex;gap:1.2rem;margin-bottom:0.6rem;font-size:0.72rem;color:var(--muted);flex-wrap:wrap">
         <span><span style="display:inline-block;width:10px;height:10px;background:#f85149;border-radius:2px;margin-right:4px"></span>Highest risk</span>
         <span><span style="display:inline-block;width:10px;height:10px;background:#ffa657;border-radius:2px;margin-right:4px"></span>High risk</span>
         <span><span style="display:inline-block;width:10px;height:10px;background:#d29922;border-radius:2px;margin-right:4px"></span>Moderate risk</span>
-        <span style="margin-left:auto;color:#f85149;font-weight:500">Red labels = units at risk</span>
+        <span style="margin-left:auto;color:#f85149;font-weight:600">Red labels = units at risk</span>
       </div>
       <div id="chart-mg-bar"></div>
     </div>
@@ -149,7 +178,10 @@
   <!-- ── TRANSIT ── -->
   <section id="page-transit" class="page" style="display:none">
     <div class="page-header-row">
-      <div><div class="page-title">Stock in Transit Analysis</div><div class="page-subtitle">Tracking of pharmaceutical goods moving through the supply chain</div></div>
+      <div>
+        <div class="page-title">🚚 Stock in Transit</div>
+        <div class="page-subtitle">Tracking pharmaceutical goods moving through the supply chain</div>
+      </div>
     </div>
     <div class="filter-bar">
       <div class="ms-wrap" id="ms-transit-plant"><button class="ms-btn" type="button">All Plants <span class="ms-arrow">▾</span></button><div class="ms-dropdown" id="ms-transit-plant-dd"></div></div>
@@ -163,40 +195,34 @@
     <div id="transit-phantom-alert"></div>
     <div class="kpi-row" id="transit-kpis"></div>
     <div id="transit-mapping-banner"></div>
-    <div class="chart-box full"><div class="section-header">Transit Quantity &amp; Value by Plant</div><div id="chart-transit-plant"></div></div>
-
-    <!-- ── TAB BAR ── -->
-    <div class="transit-tab-bar" style="display:flex;gap:0.5rem;margin-top:1.5rem;margin-bottom:0;border-bottom:2px solid var(--border2)">
-      <button class="transit-tab-btn active" data-tab="verified"     style="padding:0.5rem 1.2rem;border:none;border-bottom:2px solid var(--blue);background:transparent;color:var(--blue);font-weight:600;font-size:0.85rem;cursor:pointer;margin-bottom:-2px;font-family:inherit">✅ Verified Transit Items</button>
-      <button class="transit-tab-btn"        data-tab="unverified"   style="padding:0.5rem 1.2rem;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-weight:500;font-size:0.85rem;cursor:pointer;margin-bottom:-2px;font-family:inherit">⚠️ Unverified Transit Items</button>
-      <button class="transit-tab-btn"        data-tab="detail"       style="padding:0.5rem 1.2rem;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-weight:500;font-size:0.85rem;cursor:pointer;margin-bottom:-2px;font-family:inherit">📦 Stock-in-Transit Detail File</button>
-      <button class="transit-tab-btn"        data-tab="withinplant"  style="padding:0.5rem 1.2rem;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-weight:500;font-size:0.85rem;cursor:pointer;margin-bottom:-2px;font-family:inherit">📦 Stock-in-Transit Within Plant</button>
+    <div class="chart-box full">
+      <div class="section-header">Transit Quantity &amp; Value by Plant</div>
+      <div id="chart-transit-plant"></div>
     </div>
 
-    <!-- ── TAB: Verified Transit Items ── -->
+    <!-- Tab Bar -->
+    <div class="transit-tab-bar" style="display:flex;gap:0.5rem;margin-top:1.5rem;margin-bottom:0;border-bottom:2px solid var(--border2);overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <button class="transit-tab-btn active" data-tab="verified"    style="padding:0.5rem 1.1rem;border:none;border-bottom:2px solid var(--blue);background:transparent;color:var(--blue);font-weight:700;font-size:0.82rem;cursor:pointer;margin-bottom:-2px;font-family:inherit;white-space:nowrap;flex-shrink:0">✅ Verified Transit</button>
+      <button class="transit-tab-btn"        data-tab="unverified"  style="padding:0.5rem 1.1rem;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-weight:500;font-size:0.82rem;cursor:pointer;margin-bottom:-2px;font-family:inherit;white-space:nowrap;flex-shrink:0">⚠️ Unverified</button>
+      <button class="transit-tab-btn"        data-tab="detail"      style="padding:0.5rem 1.1rem;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-weight:500;font-size:0.82rem;cursor:pointer;margin-bottom:-2px;font-family:inherit;white-space:nowrap;flex-shrink:0">📦 Detail File</button>
+      <button class="transit-tab-btn"        data-tab="withinplant" style="padding:0.5rem 1.1rem;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-weight:500;font-size:0.82rem;cursor:pointer;margin-bottom:-2px;font-family:inherit;white-space:nowrap;flex-shrink:0">📦 Within Plant</button>
+    </div>
+
     <div id="transit-tab-verified" class="transit-tab-panel" style="display:block;padding-top:1rem">
       <div id="transit-dl-row" style="display:flex;gap:0.6rem;justify-content:flex-end;margin-bottom:0.5rem"></div>
       <div id="transit-table-wrap"></div>
     </div>
-
-    <!-- ── TAB: Unverified Transit Items ── -->
     <div id="transit-tab-unverified" class="transit-tab-panel" style="display:none;padding-top:1rem">
       <div id="transit-phantom-section" style="display:none;margin-top:0"></div>
     </div>
-
-    <!-- ── TAB: Stock-in-Transit Detail File ── -->
     <div id="transit-tab-detail" class="transit-tab-panel" style="display:none;padding-top:1rem">
       <div id="stock-transit-no-file" class="alert-info" style="margin-bottom:1rem">
         Upload a Transit Excel file using the <b>📦 Upload Transit Excel</b> button in the sidebar to view detailed purchasing document and supplying plant breakdown.
       </div>
       <div id="stock-transit-content" style="display:none">
         <div class="filter-bar" style="margin-bottom:1rem">
-          <select id="st-filter-pur-doc" >
-            <option value="">All Purchasing Documents</option>
-          </select>
-          <select id="st-filter-sup-plant" >
-            <option value="">All Supplying Plants</option>
-          </select>
+          <select id="st-filter-pur-doc"><option value="">All Purchasing Documents</option></select>
+          <select id="st-filter-sup-plant"><option value="">All Supplying Plants</option></select>
           <button class="apply-btn small" id="st-filter-apply">Apply</button>
           <button class="apply-btn secondary small" id="st-filter-clear">Clear</button>
         </div>
@@ -208,8 +234,6 @@
         <div id="st-table-wrap"></div>
       </div>
     </div>
-
-    <!-- ── TAB: Stock-in-Transit Within Plant ── -->
     <div id="transit-tab-withinplant" class="transit-tab-panel" style="display:none;padding-top:1rem">
       <div id="within-plant-no-file" class="alert-info" style="margin-bottom:1rem">
         Upload a Transit Excel file using the <b>📦 Upload Transit Excel</b> button in the sidebar to view within-plant transit movements.
@@ -228,7 +252,10 @@
   <!-- ── EXPIRY ── -->
   <section id="page-expiry" class="page" style="display:none">
     <div class="page-header-row">
-      <div><div class="page-title">Expiry Watchlist</div><div class="page-subtitle">Monitor shelf life expiration dates to prevent stock wastage</div></div>
+      <div>
+        <div class="page-title">⏰ Expiry Watchlist</div>
+        <div class="page-subtitle">Monitor shelf life expiration dates to prevent stock wastage</div>
+      </div>
     </div>
     <div class="filter-bar">
       <div class="radio-group" id="expiry-window-group" style="margin:0">
@@ -243,22 +270,21 @@
       <button type="button" class="apply-btn small" id="expiry-filter-apply">Apply</button>
       <button type="button" class="apply-btn secondary small" id="expiry-filter-clear">Clear</button>
     </div>
-
     <div class="kpi-row" id="expiry-kpis"></div>
     <div id="expiry-mapping-banner"></div>
     <div class="chart-box full">
       <div class="section-header" style="display:flex;align-items:center;gap:0.5rem">
         <span>Expiry Timeline — Items &amp; Value at Risk by Month</span>
-        <span style="font-size:0.7rem;font-weight:400;color:#8b949e;margin-left:0.25rem">— Click a bar to drill into that month's items</span>
+        <span style="font-size:0.7rem;font-weight:400;color:var(--muted);margin-left:0.25rem">— Click a bar to drill into that month's items</span>
       </div>
       <div id="chart-expiry-timeline"></div>
       <div id="expiry-drilldown" style="display:none;margin-top:1rem;border-top:1px solid var(--border2);padding-top:1rem">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
           <div>
-            <span id="expiry-drill-title" style="font-weight:600;color:#e6edf3;font-size:0.95rem"></span>
-            <span id="expiry-drill-meta" style="font-size:0.78rem;color:#8b949e;margin-left:0.75rem"></span>
+            <span id="expiry-drill-title" style="font-weight:700;color:var(--text);font-size:0.95rem"></span>
+            <span id="expiry-drill-meta" style="font-size:0.78rem;color:var(--muted);margin-left:0.75rem"></span>
           </div>
-          <div style="display:flex;gap:0.5rem;align-items:center">
+          <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
             <button id="expiry-drill-dl-csv" class="dl-btn" style="font-size:0.72rem;padding:4px 10px">⬇ CSV</button>
             <button id="expiry-drill-dl-xlsx" class="dl-btn" style="font-size:0.72rem;padding:4px 10px">⬇ Excel</button>
             <button id="expiry-drill-close" class="apply-btn secondary" style="font-size:0.72rem;padding:4px 12px">✕ Close</button>
@@ -272,14 +298,17 @@
     <div id="expired-section" style="margin-top:1.5rem">
       <div class="section-header" id="expired-header"></div>
       <div id="expired-table-wrap"></div>
-      <button class="dl-btn" id="btn-dl-expired">⬇ Download Expired Items (CSV)</button>
+      <button class="dl-btn" id="btn-dl-expired" style="margin-top:0.5rem">⬇ Download Expired Items (CSV)</button>
     </div>
   </section>
 
   <!-- ── QC ── -->
   <section id="page-qc" class="page" style="display:none">
     <div class="page-header-row">
-      <div><div class="page-title">Quality Inspection Stock</div><div class="page-subtitle">Inventory currently held in quality control and pending release</div></div>
+      <div>
+        <div class="page-title">🔬 Quality Inspection</div>
+        <div class="page-subtitle">Inventory currently held in quality control and pending release</div>
+      </div>
     </div>
     <div class="filter-bar">
       <div class="ms-wrap" id="ms-qc-plant"><button class="ms-btn" type="button">All Plants <span class="ms-arrow">▾</span></button><div class="ms-dropdown" id="ms-qc-plant-dd"></div></div>
@@ -289,23 +318,21 @@
       <button type="button" class="apply-btn small" id="qc-filter-apply">Apply</button>
       <button type="button" class="apply-btn secondary small" id="qc-filter-clear">Clear</button>
     </div>
-
     <div class="kpi-row" id="qc-kpis"></div>
     <div id="qc-mapping-banner"></div>
-    <div class="chart-box full"><div class="section-header">QC Quantity &amp; Value by Plant</div><div id="chart-qc-plant"></div></div>
-    <!-- ── QC TAB BAR ── -->
-    <div class="qc-tab-bar" style="display:flex;gap:0.5rem;margin-top:1.5rem;margin-bottom:0;border-bottom:2px solid var(--border2)">
-      <button class="qc-tab-btn" data-tab="items"   style="padding:0.5rem 1.2rem;border:none;border-bottom:2px solid var(--blue);background:transparent;color:var(--blue);font-weight:600;font-size:0.85rem;cursor:pointer;margin-bottom:-2px;font-family:inherit">📋 Detailed QC Items</button>
-      <button class="qc-tab-btn" data-tab="days"    style="padding:0.5rem 1.2rem;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-weight:500;font-size:0.85rem;cursor:pointer;margin-bottom:-2px;font-family:inherit">⏱ Days in Quality</button>
+    <div class="chart-box full">
+      <div class="section-header">QC Quantity &amp; Value by Plant</div>
+      <div id="chart-qc-plant"></div>
     </div>
-
-    <!-- ── TAB: Detailed QC Items ── -->
+    <!-- QC Tab Bar -->
+    <div class="qc-tab-bar" style="display:flex;gap:0.5rem;margin-top:1.5rem;margin-bottom:0;border-bottom:2px solid var(--border2);overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <button class="qc-tab-btn" data-tab="items" style="padding:0.5rem 1.1rem;border:none;border-bottom:2px solid var(--blue);background:transparent;color:var(--blue);font-weight:700;font-size:0.82rem;cursor:pointer;margin-bottom:-2px;font-family:inherit;white-space:nowrap;flex-shrink:0">📋 Detailed QC Items</button>
+      <button class="qc-tab-btn" data-tab="days"  style="padding:0.5rem 1.1rem;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-weight:500;font-size:0.82rem;cursor:pointer;margin-bottom:-2px;font-family:inherit;white-space:nowrap;flex-shrink:0">⏱ Days in Quality</button>
+    </div>
     <div id="qc-tab-items" class="qc-tab-panel" style="display:block;padding-top:1rem">
       <div id="qc-dl-row" style="display:flex;gap:0.6rem;justify-content:flex-end;margin-bottom:0.5rem"></div>
       <div id="qc-table-wrap"></div>
     </div>
-
-    <!-- ── TAB: Days in Quality ── -->
     <div id="qc-tab-days" class="qc-tab-panel" style="display:none;padding-top:1rem">
       <div id="qc-days-wrap"></div>
     </div>
@@ -314,10 +341,12 @@
   <!-- ── BRANCH ── -->
   <section id="page-branch" class="page" style="display:none">
     <div class="page-header-row">
-      <div><div class="page-title">Branch Comparison</div><div class="page-subtitle">Compare inventory across branches — total value or individual material</div></div>
+      <div>
+        <div class="page-title">🏢 Branch Comparison</div>
+        <div class="page-subtitle">Compare inventory across branches — total value or individual material</div>
+      </div>
     </div>
     <div id="branch-central-info" class="alert-info" style="margin-bottom:1rem;display:none"></div>
-
     <div id="branch-mapping-banner"></div>
     <div class="filter-row" id="branch-select-row" style="display:none">
       <div class="ms-wrap" id="ms-branch-select" style="min-width:260px">
@@ -330,10 +359,13 @@
     <div id="branch-tabs-wrap" style="margin-top:1.2rem"></div>
   </section>
 
-  <!-- ── FLOW ── -->
+  <!-- ── FLOW / ZERO UNRESTRICTED ── -->
   <section id="page-flow" class="page" style="display:none">
     <div class="page-header-row">
-      <div><div class="page-title">Inventory Flow</div><div class="page-subtitle">Track inbound/outbound movements, current stock levels, reorder alerts, and inter-location transfers</div></div>
+      <div>
+        <div class="page-title">📦 Zero Unrestricted Stock</div>
+        <div class="page-subtitle">Track inbound/outbound movements, stock levels, reorder alerts, and inter-location transfers</div>
+      </div>
     </div>
     <div class="filter-bar">
       <div class="ms-wrap" id="ms-flow-plant"><button class="ms-btn" type="button">All Plants <span class="ms-arrow">▾</span></button><div class="ms-dropdown" id="ms-flow-plant-dd"></div></div>
@@ -343,9 +375,7 @@
       <button type="button" class="apply-btn small" id="flow-filter-apply">Apply</button>
       <button type="button" class="apply-btn secondary small" id="flow-filter-clear">Clear</button>
     </div>
-
     <div class="kpi-row" id="flow-kpis"></div>
-
     <div id="flow-mapping-banner"></div>
     <div class="section-header">🔴 Reorder Alerts — Zero or Critically Low Unrestricted Stock</div>
     <div class="alert-warning" style="margin-bottom:0.8rem;font-size:0.78rem">Items with zero unrestricted stock but existing in transit or QC — immediate follow-up required.</div>
@@ -360,9 +390,7 @@
     <div class="chart-box full"><div id="chart-inbound-outbound"></div></div>
   </section>
 
-
-
-  <!-- ── INCOMING SHELF LIFE ── -->
+  <!-- ── SHELF LIFE LOOKUP ── -->
   <section id="page-incoming" class="page" style="display:none">
     <div class="page-header-row">
       <div>
@@ -370,25 +398,19 @@
         <div class="page-subtitle">HO01 Plant Only · ZME, ZMS, ZLC valuation types · Based on Receipt (Posting) Date</div>
       </div>
     </div>
-
-    <!-- No file alert -->
     <div id="incoming-no-file" class="alert-info" style="margin-bottom:1rem">
       Upload a <b>Received Goods Excel</b> file (movement 101 export) using the <b>📥 Upload Received Goods Excel</b> button in the sidebar to enable Shelf Life Lookup analysis.
       Also upload the <b>Inventory Excel</b> file — only received batches that are present in the current inventory (any branch) will be shown.
     </div>
-
     <div id="incoming-content" style="display:none">
-      <!-- Filters -->
-      <div class="filter-bar" style="margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem; align-items:center">
+      <div class="filter-bar" style="margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;align-items:center">
         <div>
           <label class="isl-filter-label">Posting Date</label>
-          <select id="isl-filter-date" >
-            <option value="">All Posting Dates</option>
-          </select>
+          <select id="isl-filter-date"><option value="">All Posting Dates</option></select>
         </div>
         <div>
           <label class="isl-filter-label">Material Type (Val. Type)</label>
-          <select id="isl-filter-valtype" >
+          <select id="isl-filter-valtype">
             <option value="">All Types</option>
             <option value="ZME">ZME</option>
             <option value="ZMS">ZMS</option>
@@ -397,33 +419,23 @@
         </div>
         <div>
           <label class="isl-filter-label">HO01 Receipt Location</label>
-          <select id="isl-filter-sloc" >
-            <option value="">All Receipt Locations</option>
-          </select>
+          <select id="isl-filter-sloc"><option value="">All Receipt Locations</option></select>
         </div>
         <div>
           <label class="isl-filter-label">Material Group</label>
-          <select id="isl-filter-mg" >
-            <option value="">All Material Groups</option>
-          </select>
+          <select id="isl-filter-mg"><option value="">All Material Groups</option></select>
         </div>
         <div class="ms-wrap" id="ms-isl-mat"><button class="ms-btn" type="button">All Materials <span class="ms-arrow">▾</span></button><div class="ms-dropdown" id="ms-isl-mat-dd"></div></div>
         <button type="button" class="apply-btn small" id="isl-filter-apply">Apply</button>
         <button type="button" class="apply-btn secondary small" id="isl-filter-clear">Clear</button>
       </div>
-
-      <!-- KPIs -->
       <div class="kpi-row" id="isl-kpis" style="margin-bottom:1.2rem"></div>
-
-      <!-- Chart -->
       <div class="chart-box full" style="margin-bottom:1.2rem">
         <div class="section-header">Shelf Life at Receipt Flag Distribution by Storage Location</div>
         <div id="isl-chart-sloc"></div>
       </div>
-
-      <!-- Table -->
       <div class="section-header" style="margin-bottom:0.5rem">Detailed Shelf Life Lookup Records</div>
-      <div id="isl-count" class="alert-info" style="margin-bottom:0.7rem; display:none"></div>
+      <div id="isl-count" class="alert-info" style="margin-bottom:0.7rem;display:none"></div>
       <div id="isl-dl-row" style="display:flex;gap:0.6rem;justify-content:flex-end;margin-bottom:0.5rem"></div>
       <div id="isl-table-wrap"></div>
     </div>
@@ -437,37 +449,27 @@
         <div class="page-subtitle">Distribution of inventory value and quantity across plants — identify branch monopolies and supply chain vulnerabilities</div>
       </div>
     </div>
-
     <div class="filter-bar">
       <div class="ms-wrap" id="ms-conc-mg"><button class="ms-btn" type="button">All Material Groups <span class="ms-arrow">▾</span></button><div class="ms-dropdown" id="ms-conc-mg-dd"></div></div>
       <div class="ms-wrap" id="ms-conc-vt"><button class="ms-btn" type="button">All Material Types <span class="ms-arrow">▾</span></button><div class="ms-dropdown" id="ms-conc-vt-dd"></div></div>
       <button type="button" class="apply-btn small" id="conc-filter-apply">Apply</button>
       <button type="button" class="apply-btn secondary small" id="conc-filter-clear">Clear</button>
     </div>
-
     <div class="kpi-row" id="conc-kpis"></div>
-
-    <!-- 2×2 side-by-side grid: all four panels -->
     <div class="conc-quad-grid">
-
-      <!-- TOP-LEFT: 1. Overall Value Distribution by Plant (pie) -->
       <div class="chart-box conc-quad-cell">
         <div class="section-header">📊 Overall Value Distribution by Plant</div>
         <div class="conc-chart-sub">Percentage share of total inventory value held per plant</div>
         <div id="chart-conc-pie" style="min-height:300px;flex:1"></div>
       </div>
-
-      <!-- TOP-RIGHT: 2. Concentration Analysis -->
       <div class="chart-box conc-quad-cell">
         <div class="section-header">🔍 Concentration Analysis</div>
         <div class="conc-chart-sub">How stock is spread across branches by material</div>
         <div id="conc-analysis-cards" style="margin-top:0.9rem"></div>
       </div>
-
-      <!-- BOTTOM-LEFT: 3. Highly Concentrated Items table -->
       <div class="chart-box conc-quad-cell conc-quad-scroll">
         <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.4rem">
-          <span>⚠️ Highly Concentrated Items — Sole Branch Accumulation (&gt;80% in one plant)</span>
+          <span>⚠️ Highly Concentrated Items — Sole Branch (&gt;80% in one plant)</span>
           <span style="font-size:0.62rem;color:var(--muted)">Qty + Value basis</span>
         </div>
         <div class="conc-legend" style="margin-bottom:0.85rem">
@@ -477,14 +479,11 @@
         <div id="conc-dl-row" style="display:flex;gap:0.6rem;justify-content:flex-end;margin-bottom:0.5rem"></div>
         <div id="conc-table-wrap"></div>
       </div>
-
-      <!-- BOTTOM-RIGHT: 4. Branch Spread Distribution bar chart -->
       <div class="chart-box conc-quad-cell">
         <div class="section-header">🌐 Branch Spread Distribution — Number of Plants per Material</div>
         <div class="conc-chart-sub" style="margin-bottom:0.9rem">How many distinct plants hold each material (unrestricted stock only)</div>
         <div id="chart-conc-spread" style="min-height:260px;flex:1"></div>
       </div>
-
     </div>
   </section>
 
@@ -493,20 +492,19 @@
 <script>
 // ── THEME TOGGLE ─────────────────────────────────────────────
 (function() {
-  const ROOT   = document.documentElement;
-  const btn    = document.getElementById('theme-toggle');
-  const icon   = document.getElementById('theme-icon');
-  const label  = document.getElementById('theme-label');
+  const ROOT  = document.documentElement;
+  const btn   = document.getElementById('theme-toggle');
+  const icon  = document.getElementById('theme-icon');
+  const label = document.getElementById('theme-label');
 
   function safeGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
   function safeSet(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
 
-  // Restore saved preference
   const saved = safeGet('epss-theme');
   if (saved === 'light') {
     ROOT.setAttribute('data-theme', 'light');
     icon.textContent  = '☀️';
-    label.textContent = 'Light Mode';
+    label.textContent = 'Light';
   }
 
   btn.addEventListener('click', () => {
@@ -514,14 +512,46 @@
     if (isLight) {
       ROOT.removeAttribute('data-theme');
       icon.textContent  = '🌙';
-      label.textContent = 'Dark Mode';
+      label.textContent = 'Dark';
       safeSet('epss-theme', 'dark');
     } else {
       ROOT.setAttribute('data-theme', 'light');
       icon.textContent  = '☀️';
-      label.textContent = 'Light Mode';
+      label.textContent = 'Light';
       safeSet('epss-theme', 'light');
     }
+  });
+})();
+
+// ── MOBILE SIDEBAR TOGGLE ─────────────────────────────────────
+(function() {
+  const sidebar  = document.getElementById('sidebar');
+  const overlay  = document.getElementById('sidebar-overlay');
+  const menuBtn  = document.getElementById('mobile-menu-btn');
+
+  function openSidebar() {
+    sidebar.classList.add('open');
+    overlay.classList.add('open');
+    menuBtn.setAttribute('aria-expanded', 'true');
+    menuBtn.textContent = '✕';
+  }
+  function closeSidebar() {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    menuBtn.textContent = '☰';
+  }
+
+  menuBtn.addEventListener('click', () => {
+    sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+  });
+  overlay.addEventListener('click', closeSidebar);
+
+  // Close sidebar on nav button click (mobile UX)
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (window.innerWidth <= 640) closeSidebar();
+    });
   });
 })();
 </script>
@@ -534,24 +564,17 @@ document.addEventListener("DOMContentLoaded", function() {
     const btn = e.target.closest(".transit-tab-btn");
     if (!btn) return;
     const tab = btn.dataset.tab;
-    // Update button styles
     document.querySelectorAll(".transit-tab-btn").forEach(b => {
       const active = b.dataset.tab === tab;
       b.style.color       = active ? "var(--blue)" : "var(--muted)";
-      b.style.fontWeight  = active ? "600" : "500";
+      b.style.fontWeight  = active ? "700" : "500";
       b.style.borderBottom= active ? "2px solid var(--blue)" : "2px solid transparent";
     });
-    // Show/hide panels
     document.querySelectorAll(".transit-tab-panel").forEach(p => {
       p.style.display = p.id === "transit-tab-" + tab ? "block" : "none";
     });
-    // Trigger within-plant render when that tab is opened
-    if (tab === "withinplant" && typeof renderWithinPlantTransit === "function") {
-      renderWithinPlantTransit();
-    }
-    if (tab === "detail" && typeof renderStockTransitSection === "function") {
-      renderStockTransitSection();
-    }
+    if (tab === "withinplant" && typeof renderWithinPlantTransit === "function") renderWithinPlantTransit();
+    if (tab === "detail"      && typeof renderStockTransitSection === "function") renderStockTransitSection();
   });
 });
 
@@ -561,14 +584,12 @@ document.addEventListener("DOMContentLoaded", function() {
     const btn = e.target.closest(".qc-tab-btn");
     if (!btn) return;
     const tab = btn.dataset.tab;
-    // Update button styles
     document.querySelectorAll(".qc-tab-btn").forEach(b => {
       const active = b.dataset.tab === tab;
       b.style.color       = active ? "var(--blue)" : "var(--muted)";
-      b.style.fontWeight  = active ? "600" : "500";
+      b.style.fontWeight  = active ? "700" : "500";
       b.style.borderBottom= active ? "2px solid var(--blue)" : "2px solid transparent";
     });
-    // Show/hide panels
     document.querySelectorAll(".qc-tab-panel").forEach(p => {
       p.style.display = p.id === "qc-tab-" + tab ? "block" : "none";
     });
