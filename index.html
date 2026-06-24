@@ -293,9 +293,22 @@
     <div class="kpi-row" id="qc-kpis"></div>
     <div id="qc-mapping-banner"></div>
     <div class="chart-box full"><div class="section-header">QC Quantity &amp; Value by Plant</div><div id="chart-qc-plant"></div></div>
-    <div class="section-header" style="margin-top:1.5rem">Detailed QC Items</div>
-    <div id="qc-dl-row" style="display:flex;gap:0.6rem;justify-content:flex-end;margin-bottom:0.5rem"></div>
-    <div id="qc-table-wrap"></div>
+    <div style="display:flex;gap:1.2rem;align-items:flex-start;margin-top:1.5rem">
+      <!-- Left: Detailed QC Items table -->
+      <div style="flex:1;min-width:0">
+        <div class="section-header">Detailed QC Items</div>
+        <div id="qc-dl-row" style="display:flex;gap:0.6rem;justify-content:flex-end;margin-bottom:0.5rem"></div>
+        <div id="qc-table-wrap"></div>
+      </div>
+      <!-- Right: Days in Quality panel -->
+      <div style="width:340px;flex-shrink:0">
+        <div class="section-header" style="display:flex;align-items:center;gap:0.5rem">
+          <span>⏱ Days in Quality</span>
+          <span style="font-size:0.65rem;font-weight:400;color:var(--muted);margin-left:auto">HO01 receipts · matched by material &amp; batch</span>
+        </div>
+        <div id="qc-days-wrap" style="margin-top:0.5rem"></div>
+      </div>
+    </div>
   </section>
 
   <!-- ── BRANCH ── -->
