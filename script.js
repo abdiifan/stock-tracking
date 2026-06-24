@@ -2057,34 +2057,47 @@ function renderQC() {
     () => downloadExcel(qcRows, qcCols, "qc_inspection.xlsx"));
 
   // ── DAYS IN QUALITY PANEL ─────────────────────────────────────────────────
-  // For each QC item at HO01, look up the matching posting date from the
-  // received goods file (_incomingRawAll) using Material + Batch as the key.
-  // Days in QC = today − posting date (calendar days).
-  _renderQCDaysPanel(qcRows);
+  // Only HO01 plant rows are eligible — Days in Quality is calculated from
+  // the received goods file (HO01 receipts only). Pass unaggregated rawFiltered
+  // rows so each row retains its individual Plant, Batch, and Expiry Date.
+  _renderQCDaysPanel(rawFiltered);
 }
 
 /**
- * Builds the "Days in Quality" side panel.
+ * Builds the "Days in Quality" tab panel.
  *
- * Logic:
- *  1. Build a lookup map from _incomingRawAll keyed by "MATERIAL||BATCH"
- *     → latest posting date across all receipts for that pair.
- *  2. For each QC row, find its matching posting date.
- *  3. daysInQC = floor((today − postingDate) / 86400000)
- *  4. Render a compact table sorted descending by days (oldest first).
+ * Rules:
+ *  • HO01 plant ONLY — Days in Quality is sourced from HO01 received goods
+ *    receipts; showing it for other plants would be meaningless.
+ *  • Matched by Material + Batch against _incomingRawAll (posting dates).
+ *  • daysInQC = today − posting date (calendar days).
+ *  • Columns: Material Code, Material Description, Batch, Expiry Date,
+ *             Posting Date (receipt), Days in QC.
+ *  • Sorted descending by days (oldest = most urgent at top).
  *
- * Only rows with a matched posting date are shown; rows with no receipt
- * record show "—" in the days column but are still listed so the analyst
- * can see the gap.
+ * @param {Array} allQCRows — unaggregated rawFiltered QC rows (all plants).
  */
-function _renderQCDaysPanel(qcRows) {
+function _renderQCDaysPanel(allQCRows) {
   const wrap = document.getElementById("qc-days-wrap");
   if (!wrap) return;
 
-  // ── Step 1: build posting-date lookup from received goods data ──────────
-  // _incomingRawAll holds every HO01 receipt row (ungrouped, all ZME/ZMS/ZLC).
-  // We want the LATEST posting date per Material+Batch pair.
-  const postingMap = new Map(); // key: "MAT||BATCH" → latest Date
+  // ── Step 1: restrict to HO01 only ────────────────────────────────────────
+  const ho01Rows = allQCRows.filter(r =>
+    String(r["Plant"] || "").trim().toUpperCase() === "HO01"
+  );
+
+  if (!ho01Rows.length) {
+    wrap.innerHTML = `<div class="alert-info" style="font-size:0.78rem">
+      ℹ️ Days in Quality is only available for <strong>HO01</strong> plant items.
+      No HO01 items are currently in quality inspection.
+    </div>`;
+    return;
+  }
+
+  // ── Step 2: build posting-date lookup from received goods data ────────────
+  // _incomingRawAll = every HO01 receipt row (ungrouped, ZME/ZMS/ZLC).
+  // Key: "MATERIAL||BATCH" → latest posting Date.
+  const postingMap = new Map();
   (_incomingRawAll || []).forEach(r => {
     const mat   = String(r["Material"] || "").trim().toUpperCase();
     const batch = String(r["Batch"]    || "").trim().toUpperCase();
@@ -2093,61 +2106,45 @@ function _renderQCDaysPanel(qcRows) {
     const date = r._postingDate instanceof Date && !isNaN(r._postingDate) ? r._postingDate : null;
     if (!date) return;
     const existing = postingMap.get(key);
-    if (!existing || date.getTime() > existing.getTime()) {
-      postingMap.set(key, date);
-    }
+    if (!existing || date.getTime() > existing.getTime()) postingMap.set(key, date);
   });
+
+  if (!(_incomingRawAll || []).length) {
+    wrap.innerHTML = `<div class="alert-info" style="font-size:0.78rem">
+      Upload a <b>Received Goods Excel</b> file using the
+      <b>📥 Upload Received Goods Excel</b> button in the sidebar to calculate
+      days in quality inspection for HO01 items.
+    </div>`;
+    return;
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const MS_PER_DAY = 86400000;
 
-  // ── Step 2: annotate each QC row with days-in-QC ────────────────────────
-  // qcRows may be aggregated (multi-batch collapsed), so we also check each
-  // source batch from rawDf when the aggregated row has a _sourceBatches list.
-  const daysRows = qcRows.map(r => {
+  // ── Step 3: annotate each HO01 QC row with posting date & days ───────────
+  const daysRows = ho01Rows.map(r => {
     const mat   = String(r["Material"] || r._mappedMaterial || "").trim().toUpperCase();
     const batch = String(r["Batch"]    || "").trim().toUpperCase();
 
-    let postingDate = null;
-
-    // Direct match on material + batch
-    if (batch) {
-      const key = `${mat}||${batch}`;
-      postingDate = postingMap.get(key) || null;
-    }
-
-    // If no direct batch hit, try every source batch in _sourceBatches (mapped rows)
-    if (!postingDate && Array.isArray(r._sourceBatches)) {
-      for (const sb of r._sourceBatches) {
-        const sbKey = `${mat}||${String(sb || "").trim().toUpperCase()}`;
-        const d = postingMap.get(sbKey);
-        if (d) { postingDate = d; break; }
-      }
-    }
-
-    // Also try original material code if the row was standardized
+    // Find posting date: direct Material+Batch match first,
+    // then _origMaterial fallback for standardized rows.
+    let postingDate = (batch ? postingMap.get(`${mat}||${batch}`) : null) || null;
     if (!postingDate && r._origMaterial) {
-      const origMat = String(r._origMaterial).trim().toUpperCase();
-      const key2 = `${origMat}||${batch}`;
-      postingDate = postingMap.get(key2) || null;
+      const orig = String(r._origMaterial).trim().toUpperCase();
+      postingDate = postingMap.get(`${orig}||${batch}`) || null;
     }
 
     let daysInQC = null;
     if (postingDate instanceof Date && !isNaN(postingDate)) {
       daysInQC = Math.floor((today.getTime() - postingDate.getTime()) / MS_PER_DAY);
-      if (daysInQC < 0) daysInQC = null; // posting date in the future → data error
+      if (daysInQC < 0) daysInQC = null; // future posting date = data error
     }
 
-    return {
-      ...r,
-      _postingDate: postingDate,
-      _daysInQC:    daysInQC,
-    };
+    return { ...r, _postingDate: postingDate, _daysInQC: daysInQC };
   });
 
-  // Sort: rows with a known days count first (oldest = most days at top),
-  // then rows with no match (posting date unknown) at the bottom.
+  // Sort: matched rows first (most days at top), unmatched at bottom
   daysRows.sort((a, b) => {
     if (a._daysInQC !== null && b._daysInQC !== null) return b._daysInQC - a._daysInQC;
     if (a._daysInQC !== null) return -1;
@@ -2155,65 +2152,48 @@ function _renderQCDaysPanel(qcRows) {
     return 0;
   });
 
-  // ── Step 3: render ───────────────────────────────────────────────────────
-  if (!daysRows.length) {
-    wrap.innerHTML = `<div class="alert-info" style="font-size:0.78rem">No QC items to display.</div>`;
-    return;
-  }
-
-  const hasAnyMatch = daysRows.some(r => r._daysInQC !== null);
-  if (!hasAnyMatch && !(_incomingRawAll || []).length) {
-    wrap.innerHTML = `<div class="alert-info" style="font-size:0.78rem">
-      Upload a <b>Received Goods Excel</b> file to calculate days in quality inspection.
-    </div>`;
-    return;
-  }
-
-  // Badge colour helper: green ≤14d, amber 15–30d, red >30d
+  // ── Step 4: render ────────────────────────────────────────────────────────
   function daysBadge(days) {
     if (days === null) return `<span style="color:var(--dim);font-size:0.8rem">—</span>`;
     const color = days <= 14 ? "var(--green)" : days <= 30 ? "var(--amber)" : "var(--red)";
     return `<span style="
-      display:inline-block;
-      background:${color}22;
-      color:${color};
-      border:1px solid ${color}66;
-      border-radius:4px;
-      padding:1px 7px;
-      font-size:0.78rem;
-      font-weight:600;
-      font-family:'IBM Plex Mono',monospace;
-      min-width:40px;
-      text-align:center;
-    ">${days}d</span>`;
+      display:inline-block;background:${color}22;color:${color};
+      border:1px solid ${color}66;border-radius:4px;padding:1px 8px;
+      font-size:0.78rem;font-weight:600;font-family:'IBM Plex Mono',monospace;
+      min-width:42px;text-align:center;">${days}d</span>`;
   }
 
   let html = `
-    <div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.5rem;display:flex;gap:0.8rem;flex-wrap:wrap">
+    <div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.6rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:center">
+      <span style="color:var(--blue);font-weight:600">🏭 HO01 plant only</span>
       <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--green);margin-right:3px"></span>≤14 days</span>
       <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--amber);margin-right:3px"></span>15–30 days</span>
       <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--red);margin-right:3px"></span>&gt;30 days</span>
     </div>
-    <div class="tbl-wrap" style="max-height:520px;overflow-y:auto">
+    <div class="tbl-wrap">
     <table style="font-size:0.76rem;width:100%">
-      <thead>
-        <tr>
-          <th style="text-align:left;padding:5px 8px;white-space:nowrap">Material</th>
-          <th style="text-align:left;padding:5px 8px;white-space:nowrap">Batch</th>
-          <th style="text-align:left;padding:5px 8px;white-space:nowrap">Posting Date</th>
-          <th style="text-align:center;padding:5px 8px;white-space:nowrap">Days in QC</th>
-        </tr>
-      </thead>
+      <thead><tr>
+        <th style="text-align:left;padding:5px 8px;white-space:nowrap">Material Code</th>
+        <th style="text-align:left;padding:5px 8px;white-space:nowrap">Material Description</th>
+        <th style="text-align:left;padding:5px 8px;white-space:nowrap">Batch</th>
+        <th style="text-align:left;padding:5px 8px;white-space:nowrap">Expiry Date</th>
+        <th style="text-align:left;padding:5px 8px;white-space:nowrap">Posting Date</th>
+        <th style="text-align:center;padding:5px 8px;white-space:nowrap">Days in QC</th>
+      </tr></thead>
       <tbody>`;
 
   daysRows.forEach(r => {
     const mat   = escHtml(String(r["Material"] || r._mappedMaterial || "").trim());
-    const batch = escHtml(String(r["Batch"]    || "").trim() || "—");
+    const desc  = escHtml(String(r["Material Description"] || r._mappedDesc || "").trim() || "—");
+    const batch = escHtml(String(r["Batch"] || "").trim() || "—");
+    const exp   = r._expiry ? fmtLocalDate(r._expiry) : "—";
     const pd    = r._postingDate ? fmtLocalDate(r._postingDate) : "—";
     const badge = daysBadge(r._daysInQC);
     html += `<tr>
-      <td style="padding:5px 8px;font-family:'IBM Plex Mono',monospace;font-size:0.73rem;color:var(--purple)">${mat}</td>
-      <td style="padding:5px 8px;font-size:0.73rem;color:var(--muted)">${batch}</td>
+      <td style="padding:5px 8px;font-family:'IBM Plex Mono',monospace;font-size:0.73rem;color:var(--purple);white-space:nowrap">${mat}</td>
+      <td style="padding:5px 8px;font-size:0.73rem;color:var(--text);max-width:220px">${desc}</td>
+      <td style="padding:5px 8px;font-size:0.73rem;color:var(--muted);white-space:nowrap">${batch}</td>
+      <td style="padding:5px 8px;font-size:0.73rem;color:var(--muted);white-space:nowrap">${exp}</td>
       <td style="padding:5px 8px;font-size:0.73rem;color:var(--muted);white-space:nowrap">${pd}</td>
       <td style="padding:5px 8px;text-align:center">${badge}</td>
     </tr>`;
@@ -2221,16 +2201,16 @@ function _renderQCDaysPanel(qcRows) {
 
   html += `</tbody></table></div>`;
 
-  // Summary line
-  const matched  = daysRows.filter(r => r._daysInQC !== null).length;
-  const total    = daysRows.length;
-  const avgDays  = matched
-    ? Math.round(daysRows.filter(r => r._daysInQC !== null).reduce((s,r) => s + r._daysInQC, 0) / matched)
+  const matched = daysRows.filter(r => r._daysInQC !== null).length;
+  const total   = daysRows.length;
+  const avgDays = matched
+    ? Math.round(daysRows.filter(r => r._daysInQC !== null).reduce((s, r) => s + r._daysInQC, 0) / matched)
     : null;
 
-  html += `<div style="margin-top:0.5rem;font-size:0.68rem;color:var(--muted);display:flex;gap:1rem;flex-wrap:wrap">
-    <span>Matched: <strong style="color:var(--text)">${matched}/${total}</strong></span>
-    ${avgDays !== null ? `<span>Avg days: <strong style="color:var(--amber)">${avgDays}d</strong></span>` : ""}
+  html += `<div style="margin-top:0.6rem;font-size:0.68rem;color:var(--muted);display:flex;gap:1rem;flex-wrap:wrap">
+    <span>HO01 QC items: <strong style="color:var(--text)">${total}</strong></span>
+    <span>Matched to receipt: <strong style="color:var(--text)">${matched}</strong></span>
+    ${avgDays !== null ? `<span>Avg days in QC: <strong style="color:var(--amber)">${avgDays}d</strong></span>` : ""}
   </div>`;
 
   wrap.innerHTML = html;
