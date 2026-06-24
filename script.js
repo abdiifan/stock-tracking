@@ -1919,7 +1919,7 @@ function renderExpiry() {
       : "";
     document.getElementById("expired-header").innerHTML = `🔴 Already Expired Items (${expiredWithStock.length})${zeroNote}`;
     const expiredRows = expiredWithStock.map(r => ({...r, _expiryStr: r._expiry ? fmtLocalDate(r._expiry) : ""}));
-    document.getElementById("expired-table-wrap").innerHTML = buildTable(expiredRows, [
+    const expiredCols = [
       {key:"Material", label:"Material Code", fmt:(val,r)=>renderMatCode(val,r), raw:true, cellClass:"col-mat-code-wrap"},
       {key:"Material Description", label:"Material Description", fmt:(val,r)=>renderMatDesc(val,r), raw:true, cellClass:"col-mat-desc-wrap"},
       {key:"Material Group Name",            label:"Material Group"},
@@ -1927,15 +1927,10 @@ function renderExpiry() {
       {key:"Description of Storage Location",label:"Storage Location"},
       {key:"_expiryStr",                     label:"Expiry Date"},
       {key:"Unrestricted Stock",             label:"Qty", fmt:fmtQty, rawKey:"Unrestricted Stock", cellClass:"col-qty"},
-    ]);
-    document.getElementById("btn-dl-expired").onclick = () => downloadCSV(expiredRows, [
-      {key:"Material", label:"Material Code", fmt:(val,r)=>renderMatCode(val,r), raw:true, cellClass:"col-mat-code-wrap"},
-      {key:"Material Description", label:"Material Description", fmt:(val,r)=>renderMatDesc(val,r), raw:true, cellClass:"col-mat-desc-wrap"},
-      {key:"Plant Name",                     label:"Plant"},
-      {key:"Description of Storage Location",label:"Storage Location"},
-      {key:"_expiryStr",                     label:"Expiry Date"},
-      {key:"Unrestricted Stock",             label:"Qty", rawKey:"Unrestricted Stock"},
-    ], "expired_items.csv");
+    ];
+    document.getElementById("expired-table-wrap").innerHTML = buildTable(expiredRows, expiredCols);
+    document.getElementById("btn-dl-expired-csv").onclick  = () => downloadCSV(expiredRows,   expiredCols, "expired_items.csv");
+    document.getElementById("btn-dl-expired-xlsx").onclick = () => downloadExcel(expiredRows, expiredCols, "expired_items.xlsx");
   } else {
     document.getElementById("expired-section").style.display = "none";
   }
@@ -2099,6 +2094,8 @@ function _renderQCDaysPanel(qcRows) {
       ℹ️ No Quality Inspection stock found for <strong>HO01</strong>.
       This panel only shows HO01 items — other plants are excluded.
     </div>`;
+    const dlRow = document.getElementById("qc-days-dl-row");
+    if (dlRow) dlRow.innerHTML = "";
     return;
   }
 
@@ -2179,6 +2176,8 @@ function _renderQCDaysPanel(qcRows) {
   // ── Step 3: render ───────────────────────────────────────────────────────
   if (!daysRows.length) {
     wrap.innerHTML = `<div class="alert-info" style="font-size:0.78rem">No QC items to display.</div>`;
+    const dlRow = document.getElementById("qc-days-dl-row");
+    if (dlRow) dlRow.innerHTML = "";
     return;
   }
 
@@ -2187,6 +2186,8 @@ function _renderQCDaysPanel(qcRows) {
     wrap.innerHTML = `<div class="alert-info" style="font-size:0.78rem">
       Upload a <b>Received Goods Excel</b> file to calculate days in quality inspection.
     </div>`;
+    const dlRow = document.getElementById("qc-days-dl-row");
+    if (dlRow) dlRow.innerHTML = "";
     return;
   }
 
@@ -2255,6 +2256,24 @@ function _renderQCDaysPanel(qcRows) {
   </div>`;
 
   wrap.innerHTML = html;
+
+  // ── Export wiring ────────────────────────────────────────────────────────
+  const exportRows = daysRows.map(r => ({
+    Material:     String(r["Material"] || r._mappedMaterial || "").trim(),
+    Batch:        String(r["Batch"] || "").trim(),
+    PostingDate:  r._postingDate ? fmtLocalDate(r._postingDate) : "",
+    DaysInQC:     r._daysInQC !== null ? r._daysInQC : "",
+  }));
+  const exportCols = [
+    {key:"Material",    label:"Material"},
+    {key:"Batch",       label:"Batch"},
+    {key:"PostingDate", label:"Posting Date"},
+    {key:"DaysInQC",    label:"Days in QC"},
+  ];
+  injectDlButtons("qc-days-dl-row",
+    () => downloadCSV(exportRows,   exportCols, "days_in_quality_inspection.csv"),
+    () => downloadExcel(exportRows, exportCols, "days_in_quality_inspection.xlsx"),
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2484,6 +2503,7 @@ function renderBranch() {
           <button id="mat-clear" class="apply-btn secondary">Clear</button>
         </div>
         <div id="mat-chart-wrap" style="margin-bottom:1rem"></div>
+        <div id="mat-dl-row" style="display:flex;gap:0.6rem;justify-content:flex-end;margin-bottom:0.5rem"></div>
         <div id="mat-table-wrap"></div>`;
       document.getElementById("mat-apply").addEventListener("click", refreshMaterialView);
       document.getElementById("mat-clear").addEventListener("click", () => {
@@ -2586,6 +2606,8 @@ function renderBranch() {
       if (!top.length) {
         chartWrap.innerHTML = "";
         document.getElementById("mat-table-wrap").innerHTML = `<div class="alert-info">No materials found.</div>`;
+        const matDlRow = document.getElementById("mat-dl-row");
+        if (matDlRow) matDlRow.innerHTML = "";
         return;
       }
       chartWrap.innerHTML = "";
@@ -2628,11 +2650,21 @@ function renderBranch() {
         <div class="tbl-wrap"><table>${thead}<tbody>${tbody}</tbody></table></div>
         ${materials.length > 200 ? `<div class="alert-info">Showing first 200 of ${materials.length}. Refine search.</div>` : ""}`;
 
-      const flatCols = [
-        {key:"mat", label:"Material Code", fmt:(val,r)=>renderMatCode(val,r), raw:true, cellClass:"col-mat-code-wrap"}, {key:"desc", label:"Material Description", fmt:(val,r)=>renderMatDesc(val,r), raw:true, cellClass:"col-mat-desc-wrap"}, {key:"group",label:"Material Group"},
+      const exportCols = [
+        {key:"mat",  label:"Material Code"},
+        {key:"desc", label:"Material Description"},
+        {key:"group",label:"Material Group"},
         ...allPlantNames.map(pn => ({key:`__p__${pn}`, label:pn, rawKey:`__r__${pn}`})),
-        {key:"grandTotal",label:"Grand Total"},
+        {key:"grandTotal", label:"Grand Total", rawKey:"grandTotal"},
+        {key:"branchCount", label:"# Branches"},
       ];
+      // tableRows entries only carry mat/desc/group plus __p__/__r__ plant keys and
+      // grandTotal/branchCount — already exactly what exportCols needs, so export
+      // directly from tableRows (no HTML-formatting fns involved).
+      injectDlButtons("mat-dl-row",
+        () => downloadCSV(tableRows,   exportCols, "branch_material_comparison.csv"),
+        () => downloadExcel(tableRows, exportCols, "branch_material_comparison.xlsx"),
+      );
     }
   }
 
@@ -4003,10 +4035,15 @@ document.addEventListener("DOMContentLoaded", () => {
     return (+n).toLocaleString(undefined, { maximumFractionDigits: 2 });
   }
 
-  // FIX-R6: added export buttons so users with >200 results have a download path.
+  // FIX-R6: added export buttons so users always have a download path, not just
+  // when results are truncated past 200 rows.
   // BUG-FIX-1: renamed from buildTable → gsrBuildTable to avoid collision with the
   // global buildTable at line 582 (different signatures: rowClass fn vs exportFilename str).
-  function gsrBuildTable(rows, cols, exportFilename) {
+  // exportCols (optional) lets callers supply plain-text column defs for CSV/Excel
+  // export — display cols often use raw:true/fmt to render HTML badges/links,
+  // which would leak markup into a spreadsheet if exported as-is. When omitted,
+  // falls back to display cols (fine for plain text-only column sets).
+  function gsrBuildTable(rows, cols, exportFilename, exportCols) {
     if (!rows.length) return '<p class="gsr-no-data">No matching records found.</p>';
     let html = '<div class="tbl-wrap"><table><thead><tr>';
     cols.forEach(c => { html += `<th>${escHtml(c.label)}</th>`; });
@@ -4023,18 +4060,27 @@ document.addEventListener("DOMContentLoaded", () => {
       html += "</tr>";
     });
     html += "</tbody></table></div>";
-    if (rows.length > 200) {
-      const safeFile = exportFilename || "search_results.csv";
-      html += `<p class="gsr-no-data" style="margin-top:0.4rem">
-        Showing first 200 of ${rows.length} rows.
-        <button id="gsr-export-${safeFile.replace(/\W/g,'_')}" class="dl-btn" style="font-size:0.72rem;padding:3px 10px;margin-left:6px">⬇ Download all ${rows.length} rows (CSV)</button>
-      </p>`;
-      // Wire export after insertion via a deferred data attribute approach
-      setTimeout(() => {
-        const btn = document.getElementById(`gsr-export-${safeFile.replace(/\W/g,'_')}`);
-        if (btn) btn.addEventListener("click", () => downloadCSV(rows, cols, safeFile), { once: true });
-      }, 0);
-    }
+
+    const safeFile  = exportFilename || "search_results.csv";
+    const baseName   = safeFile.replace(/\.csv$/i, "");
+    const safeId     = baseName.replace(/\W/g, "_");
+    const csvFile    = baseName + ".csv";
+    const xlsxFile   = baseName + ".xlsx";
+    const colsForExport = exportCols || cols;
+    const noteText   = rows.length > 200 ? `Showing first 200 of ${rows.length} rows. ` : "";
+
+    html += `<p class="gsr-no-data" style="margin-top:0.4rem">
+      ${noteText}
+      <button id="gsr-export-csv-${safeId}" class="dl-btn" style="font-size:0.72rem;padding:3px 10px;margin-left:6px">⬇ CSV (${rows.length} rows)</button>
+      <button id="gsr-export-xlsx-${safeId}" class="dl-btn" style="font-size:0.72rem;padding:3px 10px;margin-left:6px">⬇ Excel (${rows.length} rows)</button>
+    </p>`;
+    // Wire export after insertion via a deferred data attribute approach
+    setTimeout(() => {
+      const csvBtn  = document.getElementById(`gsr-export-csv-${safeId}`);
+      const xlsxBtn = document.getElementById(`gsr-export-xlsx-${safeId}`);
+      if (csvBtn)  csvBtn.addEventListener("click",  () => downloadCSV(rows,   colsForExport, csvFile),  { once: true });
+      if (xlsxBtn) xlsxBtn.addEventListener("click", () => downloadExcel(rows, colsForExport, xlsxFile), { once: true });
+    }, 0);
     return html;
   }
 
@@ -4073,6 +4119,15 @@ document.addEventListener("DOMContentLoaded", () => {
       { key: "Stock in Quality Inspection", label: "QC Qty",     fmt: fmtQty, rawKey: "Stock in Quality Inspection",     cls: "col-qty" },
       { key: "Value of Unrestricted Stock", label: "Value (ETB)",fmt: fmtETB, rawKey: "Value of Unrestricted Stock",     cls: "col-val" },
     ];
+    const stockExportCols = [
+      { key: "Material",             label: "Material Code" },
+      { key: "Material Description", label: "Material Description" },
+      { key: "_plantList",           label: "Plant(s)" },
+      { key: "Material Group Name",  label: "Material Group" },
+      { key: "Unrestricted Stock",          label: "Unrestricted Qty" },
+      { key: "Stock in Quality Inspection", label: "QC Qty" },
+      { key: "Value of Unrestricted Stock", label: "Value (ETB)" },
+    ];
 
     // ── Transit results (from separate transit file) ──
     const transitCols = [
@@ -4081,6 +4136,14 @@ document.addEventListener("DOMContentLoaded", () => {
       { key: "_st_purDoc",   label: "Purch. Doc." },
       { key: "_st_supPlant", label: "Supplying Plant" },
       { key: "_st_qty",      label: "Qty", cls: "col-qty" },
+      { key: "_st_uom",      label: "UoM" },
+    ];
+    const transitExportCols = [
+      { key: "_st_material", label: "Material Code" },
+      { key: "_st_desc",     label: "Material Description" },
+      { key: "_st_purDoc",   label: "Purch. Doc." },
+      { key: "_st_supPlant", label: "Supplying Plant" },
+      { key: "_st_qty",      label: "Qty" },
       { key: "_st_uom",      label: "UoM" },
     ];
     const transitRows = stockTransitRaw.filter(r => {
@@ -4109,7 +4172,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <span class="gsr-badge gsr-badge-stock">In Stock</span>
       ${stockRows.length} record${stockRows.length !== 1 ? "s" : ""} found
     </div>`;
-    html += gsrBuildTable(stockRows, stockCols, "search_results_stock.csv");
+    html += gsrBuildTable(stockRows, stockCols, "search_results_stock.csv", stockExportCols);
 
     // Transit from separate file (if uploaded)
     if (stockTransitRaw.length > 0) {
@@ -4117,7 +4180,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <span class="gsr-badge gsr-badge-transit">In Transit (Transit File)</span>
         ${transitRows.length} record${transitRows.length !== 1 ? "s" : ""} found
       </div>`;
-      html += gsrBuildTable(transitRows, transitCols, "search_results_transit.csv");
+      html += gsrBuildTable(transitRows, transitCols, "search_results_transit.csv", transitExportCols);
     } else if (inTransitMain.length > 0) {
       // Fallback: show in-transit column from main data
       html += `<div class="gsr-section-title" style="margin-top:1.2rem">
@@ -4131,7 +4194,14 @@ document.addEventListener("DOMContentLoaded", () => {
         { key: "Stock in Transit",     label: "Transit Qty", cls: "col-qty" },
         { key: "Value of Stock in Transit", label: "Transit Value (ETB)", cls: "col-val" },
       ];
-      html += gsrBuildTable(inTransitMain, tCols, "search_results_transit_main.csv");
+      const tExportCols = [
+        { key: "Material",             label: "Material Code" },
+        { key: "Material Description", label: "Material Description" },
+        { key: "Plant",                label: "Plant" },
+        { key: "Stock in Transit",            label: "Transit Qty" },
+        { key: "Value of Stock in Transit",   label: "Transit Value (ETB)" },
+      ];
+      html += gsrBuildTable(inTransitMain, tCols, "search_results_transit_main.csv", tExportCols);
     }
 
     out.innerHTML = html;
