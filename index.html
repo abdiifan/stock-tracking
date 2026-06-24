@@ -298,7 +298,10 @@
     <div id="expired-section" style="margin-top:1.5rem">
       <div class="section-header" id="expired-header"></div>
       <div id="expired-table-wrap"></div>
-      <button class="dl-btn" id="btn-dl-expired" style="margin-top:0.5rem">⬇ Download Expired Items (CSV)</button>
+      <div style="display:flex;gap:0.6rem;margin-top:0.5rem">
+        <button class="dl-btn" id="btn-dl-expired-csv">⬇ CSV</button>
+        <button class="dl-btn" id="btn-dl-expired-xlsx">⬇ Excel</button>
+      </div>
     </div>
   </section>
 
@@ -334,6 +337,7 @@
       <div id="qc-table-wrap"></div>
     </div>
     <div id="qc-tab-days" class="qc-tab-panel" style="display:none;padding-top:1rem">
+      <div id="qc-days-dl-row" style="display:flex;gap:0.6rem;justify-content:flex-end;margin-bottom:0.5rem"></div>
       <div id="qc-days-wrap"></div>
     </div>
   </section>
