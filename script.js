@@ -2057,16 +2057,10 @@ function renderQC() {
     () => downloadExcel(qcRows, qcCols, "qc_inspection.xlsx"));
 
   // ── DAYS IN QUALITY PANEL ─────────────────────────────────────────────────
-  // Days in QC is only meaningful for HO01 (the central warehouse that uses the
-  // received-goods posting date as the QC start event). Other plants do not have
-  // a corresponding receipt record so showing "—" for them would be misleading.
-  // Filter the source rows (rawFiltered, not the aggregated df) to HO01 before
-  // aggregating so the panel only ever shows HO01 batches.
-  const ho01QCRaw = rawFiltered.filter(r =>
-    String(r["Plant"] || "").trim().toUpperCase() === "HO01"
-  );
-  const ho01QCRows = aggregateByMappedMaterial(ho01QCRaw).filter(r => r["Stock in Quality Inspection"] > 0);
-  _renderQCDaysPanel(ho01QCRows);
+  // For each QC item at HO01, look up the matching posting date from the
+  // received goods file (_incomingRawAll) using Material + Batch as the key.
+  // Days in QC = today − posting date (calendar days).
+  _renderQCDaysPanel(qcRows);
 }
 
 /**
@@ -2205,9 +2199,7 @@ function _renderQCDaysPanel(qcRows) {
       <thead>
         <tr>
           <th style="text-align:left;padding:5px 8px;white-space:nowrap">Material</th>
-          <th style="text-align:left;padding:5px 8px;white-space:nowrap">Description</th>
           <th style="text-align:left;padding:5px 8px;white-space:nowrap">Batch</th>
-          <th style="text-align:left;padding:5px 8px;white-space:nowrap">Expiry Date</th>
           <th style="text-align:left;padding:5px 8px;white-space:nowrap">Posting Date</th>
           <th style="text-align:center;padding:5px 8px;white-space:nowrap">Days in QC</th>
         </tr>
@@ -2216,16 +2208,12 @@ function _renderQCDaysPanel(qcRows) {
 
   daysRows.forEach(r => {
     const mat   = escHtml(String(r["Material"] || r._mappedMaterial || "").trim());
-    const desc  = escHtml(String(r._mappedDesc || r["Material Description"] || "").trim() || "—");
     const batch = escHtml(String(r["Batch"]    || "").trim() || "—");
-    const expiry = r._expiry ? fmtLocalDate(r._expiry) : "—";
     const pd    = r._postingDate ? fmtLocalDate(r._postingDate) : "—";
     const badge = daysBadge(r._daysInQC);
     html += `<tr>
       <td style="padding:5px 8px;font-family:'IBM Plex Mono',monospace;font-size:0.73rem;color:var(--purple)">${mat}</td>
-      <td style="padding:5px 8px;font-size:0.73rem;color:var(--text);max-width:200px;white-space:normal">${desc}</td>
       <td style="padding:5px 8px;font-size:0.73rem;color:var(--muted)">${batch}</td>
-      <td style="padding:5px 8px;font-size:0.73rem;color:var(--muted);white-space:nowrap">${expiry}</td>
       <td style="padding:5px 8px;font-size:0.73rem;color:var(--muted);white-space:nowrap">${pd}</td>
       <td style="padding:5px 8px;text-align:center">${badge}</td>
     </tr>`;
