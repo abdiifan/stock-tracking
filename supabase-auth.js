@@ -10,8 +10,8 @@
 //    3. Add the Supabase CDN script to index.html (see comment at bottom).
 // =============================================================================
 
-const SUPABASE_URL      = "https://YOUR_PROJECT_ID.supabase.co";  // ← replace
-const SUPABASE_ANON_KEY = "YOUR_ANON_KEY";                        // ← replace
+const SUPABASE_URL      = "https://herwvduqhlpvgvsptjpw.supabase.co";  // ← replace
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhlcnd2ZHVxaGxwdmd2c3B0anB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyOTkyNTcsImV4cCI6MjA5Nzg3NTI1N30.O0rlDyR9pXRp4BEhLX_e7lVJmleNfad6O9knkEUudEM";                        // ← replace
 
 // ── BATCH SIZES ────────────────────────────────────────────────────────────
 // Supabase recommends ≤ 1 000 rows per insert for best throughput.
