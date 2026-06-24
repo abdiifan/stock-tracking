@@ -293,31 +293,20 @@
     <div class="kpi-row" id="qc-kpis"></div>
     <div id="qc-mapping-banner"></div>
     <div class="chart-box full"><div class="section-header">QC Quantity &amp; Value by Plant</div><div id="chart-qc-plant"></div></div>
-    <div class="section-header" style="margin-top:1.5rem">Detailed QC Items</div>
-    <div id="qc-dl-row" style="display:flex;gap:0.6rem;justify-content:flex-end;margin-bottom:0.5rem"></div>
-    <div id="qc-table-wrap"></div>
-
-    <!-- ── Days in Quality — clickable toggle title ── -->
-    <div id="qc-days-toggle" style="
-        display:flex; align-items:center; gap:0.6rem;
-        margin-top:1.5rem; padding:0.55rem 0.9rem;
-        background:var(--surface2); border:1px solid var(--border2);
-        border-radius:8px; cursor:pointer; user-select:none;
-        transition:background 0.15s;
-      "
-      onclick="(function(){
-        var panel = document.getElementById('qc-days-panel');
-        var arrow = document.getElementById('qc-days-arrow');
-        var open  = panel.style.display !== 'none';
-        panel.style.display = open ? 'none' : 'block';
-        arrow.textContent   = open ? '▶' : '▼';
-      })()">
-      <span style="font-size:1em">⏱</span>
-      <span style="font-weight:600; font-size:0.88rem; color:var(--text)">Days in Quality</span>
-      <span style="font-size:0.68rem; color:var(--muted); margin-left:0.3rem">HO01 receipts · matched by material &amp; batch</span>
-      <span id="qc-days-arrow" style="margin-left:auto; font-size:0.75rem; color:var(--muted)">▶</span>
+    <!-- ── QC TAB BAR ── -->
+    <div class="qc-tab-bar" style="display:flex;gap:0.5rem;margin-top:1.5rem;margin-bottom:0;border-bottom:2px solid var(--border2)">
+      <button class="qc-tab-btn" data-tab="items"   style="padding:0.5rem 1.2rem;border:none;border-bottom:2px solid var(--blue);background:transparent;color:var(--blue);font-weight:600;font-size:0.85rem;cursor:pointer;margin-bottom:-2px;font-family:inherit">📋 Detailed QC Items</button>
+      <button class="qc-tab-btn" data-tab="days"    style="padding:0.5rem 1.2rem;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-weight:500;font-size:0.85rem;cursor:pointer;margin-bottom:-2px;font-family:inherit">⏱ Days in Quality</button>
     </div>
-    <div id="qc-days-panel" style="display:none; margin-top:0.5rem">
+
+    <!-- ── TAB: Detailed QC Items ── -->
+    <div id="qc-tab-items" class="qc-tab-panel" style="display:block;padding-top:1rem">
+      <div id="qc-dl-row" style="display:flex;gap:0.6rem;justify-content:flex-end;margin-bottom:0.5rem"></div>
+      <div id="qc-table-wrap"></div>
+    </div>
+
+    <!-- ── TAB: Days in Quality ── -->
+    <div id="qc-tab-days" class="qc-tab-panel" style="display:none;padding-top:1rem">
       <div id="qc-days-wrap"></div>
     </div>
   </section>
@@ -563,6 +552,26 @@ document.addEventListener("DOMContentLoaded", function() {
     if (tab === "detail" && typeof renderStockTransitSection === "function") {
       renderStockTransitSection();
     }
+  });
+});
+
+// ── QC TAB SWITCHING ──────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", function() {
+  document.addEventListener("click", function(e) {
+    const btn = e.target.closest(".qc-tab-btn");
+    if (!btn) return;
+    const tab = btn.dataset.tab;
+    // Update button styles
+    document.querySelectorAll(".qc-tab-btn").forEach(b => {
+      const active = b.dataset.tab === tab;
+      b.style.color       = active ? "var(--blue)" : "var(--muted)";
+      b.style.fontWeight  = active ? "600" : "500";
+      b.style.borderBottom= active ? "2px solid var(--blue)" : "2px solid transparent";
+    });
+    // Show/hide panels
+    document.querySelectorAll(".qc-tab-panel").forEach(p => {
+      p.style.display = p.id === "qc-tab-" + tab ? "block" : "none";
+    });
   });
 });
 </script>
