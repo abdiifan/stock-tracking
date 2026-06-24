@@ -2064,14 +2064,16 @@ function renderQC() {
 }
 
 /**
- * Builds the "Days in Quality" side panel.
+ * Builds the "Days in Quality — HO01" side panel.
  *
  * Logic:
- *  1. Build a lookup map from _incomingRawAll keyed by "MATERIAL||BATCH"
+ *  1. Filter qcRows to HO01 plant ONLY — this panel is not meaningful for
+ *     other plants because receipt data (_incomingRawAll) is HO01-scoped.
+ *  2. Build a lookup map from _incomingRawAll keyed by "MATERIAL||BATCH"
  *     → latest posting date across all receipts for that pair.
- *  2. For each QC row, find its matching posting date.
- *  3. daysInQC = floor((today − postingDate) / 86400000)
- *  4. Render a compact table sorted descending by days (oldest first).
+ *  3. For each HO01 QC row, find its matching posting date.
+ *  4. daysInQC = floor((today − postingDate) / 86400000)
+ *  5. Render a compact table sorted descending by days (oldest first).
  *
  * Only rows with a matched posting date are shown; rows with no receipt
  * record show "—" in the days column but are still listed so the analyst
@@ -2080,6 +2082,25 @@ function renderQC() {
 function _renderQCDaysPanel(qcRows) {
   const wrap = document.getElementById("qc-days-wrap");
   if (!wrap) return;
+
+  // ── Step 0: restrict to HO01 plant ONLY ─────────────────────────────────
+  // qcRows come from aggregateByMaterial() which collapses all plants into one
+  // row per material. We use rawDf to get the true HO01-only QC rows so the
+  // days calculation is accurate and not mixed with other branches.
+  const ho01QCRaw = (rawDf || []).filter(r => {
+    const plant = String(r["Plant"] || "").trim().toUpperCase();
+    const qcQty = Number(r["Stock in Quality Inspection"]) || 0;
+    return plant === "HO01" && qcQty > 0;
+  });
+
+  // If there are no HO01 QC items, say so and exit.
+  if (!ho01QCRaw.length) {
+    wrap.innerHTML = `<div class="alert-info" style="font-size:0.78rem">
+      ℹ️ No Quality Inspection stock found for <strong>HO01</strong>.
+      This panel only shows HO01 items — other plants are excluded.
+    </div>`;
+    return;
+  }
 
   // ── Step 1: build posting-date lookup from received goods data ──────────
   // _incomingRawAll holds every HO01 receipt row (ungrouped, all ZME/ZMS/ZLC).
@@ -2102,10 +2123,10 @@ function _renderQCDaysPanel(qcRows) {
   today.setHours(0, 0, 0, 0);
   const MS_PER_DAY = 86400000;
 
-  // ── Step 2: annotate each QC row with days-in-QC ────────────────────────
-  // qcRows may be aggregated (multi-batch collapsed), so we also check each
-  // source batch from rawDf when the aggregated row has a _sourceBatches list.
-  const daysRows = qcRows.map(r => {
+  // ── Step 2: annotate each HO01 QC row with days-in-QC ──────────────────
+  // Use raw HO01 rows directly — each row has its own Batch field so the
+  // posting-date lookup is accurate per batch, not per aggregated material.
+  const daysRows = ho01QCRaw.map(r => {
     const mat   = String(r["Material"] || r._mappedMaterial || "").trim().toUpperCase();
     const batch = String(r["Batch"]    || "").trim().toUpperCase();
 
