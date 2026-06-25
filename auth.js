@@ -188,8 +188,15 @@ async function adminCreateUser(email, password, role = "viewer") {
   const sb = getSupabase();
   if (!sb) return { error: "Supabase not ready" };
 
+  // BUG 6 FIX: functions.invoke must include the caller's JWT so the Edge Function
+  // can verify the caller is an admin (it calls supabaseUser.auth.getUser() on it).
+  // Without this the Edge Function returns 401 for every request.
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return { error: "Not signed in" };
+
   const { data, error } = await sb.functions.invoke("create-user", {
     body: { email, password, role },
+    headers: { Authorization: `Bearer ${session.access_token}` },
   });
   if (error) return { error: error.message };
   return { data };
@@ -206,14 +213,20 @@ function _setBusy(btnId, busy) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
   btn.disabled = busy;
-  if (busy) { btn._orig = btn.textContent; btn.textContent = "Please wait…"; }
-  else if (btn._orig) btn.textContent = btn._orig;
+  if (busy) {
+    // BUG 4 FIX: only capture original label once (guard against double-click)
+    if (!btn._orig) btn._orig = btn.textContent;
+    btn.textContent = "Please wait…";
+  } else {
+    btn.textContent = btn._orig || "Sign in";
+    btn._orig = null;   // reset so next busy cycle captures fresh label
+  }
 }
 
 async function _handleSignIn() {
   const sb    = getSupabase(); if (!sb) return;
   const email = (document.getElementById("si-email")?.value || "").trim();
-  const pass  =  document.getElementById("si-pass")?.value  || "";
+  const pass  = (document.getElementById("si-pass")?.value  || "").trim(); // BUG 5 FIX: trim accidental whitespace
   if (!email || !pass) { _setMsg("si-msg", "Enter your email and password.", "error"); return; }
 
   _setBusy("si-submit", true);
@@ -245,11 +258,11 @@ function _renderUserPill(user, role) {
     sidebar.appendChild(pill);
   }
 
-  const email      = user.email || "";
-  const initial    = email.charAt(0).toUpperCase();
-  const isAdmin    = role === "admin";
-  const badgeColor = isAdmin ? "var(--blue,#3d94e0)" : "var(--dim,#4a6275)";
-  const badgeLabel = isAdmin ? "Admin" : "Viewer";
+  const email        = user.email || "";
+  const initial      = email.charAt(0).toUpperCase();
+  const isAdminRole  = role === "admin";          // BUG 2 FIX: was `isAdmin`, shadowing global isAdmin()
+  const badgeColor   = isAdminRole ? "var(--blue,#3d94e0)" : "var(--dim,#4a6275)";
+  const badgeLabel   = isAdminRole ? "Admin" : "Viewer";
 
   pill.innerHTML = `
     <div class="pill-avatar">${initial}</div>
@@ -296,11 +309,15 @@ async function authBoot() {
       // Remove login overlay
       document.getElementById("auth-overlay")?.remove();
 
-      // Fetch role and apply restrictions
-      const role = await _fetchRole(session.user.id);
-      window.__pharmaRole = role;
-      _renderUserPill(session.user, role);
-      _applyRoleRestrictions(role);
+      // BUG 3 FIX: Only fetch role + re-render pill on real sign-in events,
+      // not on every TOKEN_REFRESHED (fires every ~1 h). TOKEN_REFRESHED keeps
+      // the existing role; re-fetching it also risks inserting viewer-notice twice.
+      if (event === "SIGNED_IN" || event === "INITIAL_SESSION" || !window.__pharmaRole) {
+        const role = await _fetchRole(session.user.id);
+        window.__pharmaRole = role;
+        _renderUserPill(session.user, role);
+        _applyRoleRestrictions(role);
+      }
 
     } else {
       // ── Signed out ──
@@ -356,13 +373,17 @@ function _applyRoleRestrictions(role) {
       "fileInput", "incomingFileInput", "transitFileInput", "mappingFileInput"
     ];
 
+    // BUG 1 FIX: check all elements first; retry once as a unit if any are missing.
+    const allPresent = uploadSections.every(id => document.getElementById(id));
+    if (!allPresent) {
+      if (!apply._retried) {
+        apply._retried = true;
+        setTimeout(apply, 200);
+      }
+      return;
+    }
     uploadSections.forEach(inputId => {
       const input = document.getElementById(inputId);
-      if (!input) {
-        // DOM not ready yet — retry after short delay
-        setTimeout(() => apply(), 150);
-        return;
-      }
       const label = input.closest("label");
       if (label) label.style.display = isViewer ? "none" : "";
     });
