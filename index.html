@@ -560,9 +560,11 @@
   });
 })();
 </script>
-<script src="auth.js" defer></script>
+<!-- auth.js: NO defer — must register DOMContentLoaded before it fires -->
+<script src="auth.js"></script>
+<!-- filters + script deferred: run after DOM + auth are ready -->
 <script src="filters.js" defer></script>
-<script src="script.js"  defer></script>
+<script src="script.js" defer></script>
 <script>
 // ── TRANSIT TAB SWITCHING ─────────────────────────────────────
 document.addEventListener("DOMContentLoaded", function() {
