@@ -1,3 +1,8 @@
+// Wait for deferred Plotly to be available before charting
+const waitForPlotly = () => new Promise(r => {
+  if (window.Plotly) return r();
+  window.addEventListener('load', r, { once: true });
+});
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 const REQUIRED_COLUMNS = [
   "Material","Material Description","Plant","Plant Name",
