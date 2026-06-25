@@ -182,10 +182,8 @@ function _showAuthOverlay() {
  *   const { error } = await adminCreateUser("staff@epss.gov.et", "tempPass123", "viewer");
  */
 async function adminCreateUser(email, password, role = "viewer") {
-  // NOTE: Supabase auth.admin.* requires the SERVICE ROLE key and cannot be called
-  // from the browser. We delegate to a Supabase Edge Function ("create-user") which
-  // runs server-side with the service role key. Deploy that function from:
-  //   supabase/functions/create-user/index.ts  (see setup guide in README)
+  // auth.admin.* requires the SERVICE ROLE key — cannot be called from the browser.
+  // Delegates to a Supabase Edge Function that runs server-side with the service role key.
   if (!isAdmin()) return { error: "Not authorised" };
   const sb = getSupabase();
   if (!sb) return { error: "Supabase not ready" };
@@ -224,13 +222,12 @@ async function _handleSignIn() {
 
   if (error) {
     const MSG_MAP = {
-      "Invalid login credentials":        "Incorrect email or password. Please try again.",
-      "Email not confirmed":              "Please confirm your email address before signing in.",
-      "User not allowed":                 "Your account is not authorised. Contact your administrator.",
-      "Too many requests":                "Too many sign-in attempts. Please wait a moment and try again.",
+      "Invalid login credentials":   "Incorrect email or password.",
+      "Email not confirmed":         "Please confirm your email before signing in.",
+      "User not allowed":            "Account not authorised — contact your administrator.",
+      "Too many requests":           "Too many attempts. Please wait a moment and try again.",
     };
-    const friendly = MSG_MAP[error.message] || error.message;
-    _setMsg("si-msg", friendly, "error");
+    _setMsg("si-msg", MSG_MAP[error.message] || error.message, "error");
   }
   // success is handled by the onAuthStateChange listener
 }
@@ -354,10 +351,9 @@ function _applyRoleRestrictions(role) {
     ];
 
     uploadSections.forEach(inputId => {
-      // Walk up to the <label> wrapper and its sibling status div
       const input = document.getElementById(inputId);
-      // FIX #5: null-guard — if DOM isn't ready yet, retry after a short delay
       if (!input) {
+        // DOM not ready yet — retry after short delay
         setTimeout(() => apply(), 150);
         return;
       }
@@ -463,9 +459,9 @@ async function loadSnapshot(id) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-// When auth.js is deferred, DOMContentLoaded has already fired by the time this
-// script runs — so addEventListener("DOMContentLoaded") would never trigger.
-// We check readyState and call authBoot() directly if the DOM is already ready.
+// auth.js loads synchronously (no defer) so DOMContentLoaded hasn't fired yet
+// when this line runs — the addEventListener will always catch it correctly.
+// The readyState fallback handles edge cases (e.g. script injected dynamically).
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", authBoot);
 } else {
