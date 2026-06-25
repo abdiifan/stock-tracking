@@ -757,6 +757,10 @@ function renderDashboard() {
     plantAggMap[k].TotalValue      += unrestrictedVal + transitVal2 + qcVal2;
   });
   const plantAgg = sortBy(Object.values(plantAggMap), "TotalValue");
+  async function renderDashboard() {
+  await waitForPlotly();   // ← add this
+  // ... rest of function
+}
   Plotly.newPlot("chart-plant-val", [
     { type:"bar", name:"Unrestricted (ETB)", x:plantAgg.map(r=>r.PlantName), y:plantAgg.map(r=>r.Unrestricted),
       customdata:plantAgg.map(r=>r.UnrestrictedQty), marker:{color:"#3fb950"},
@@ -828,6 +832,10 @@ function renderDashboard() {
     // ~8 ticks, while tickformat keeps labels as whole numbers (counts of materials).
     const maxRisk = Math.max(1, ...mgRiskRows.map(r => r.total));
     const xDtick  = maxRisk <= 10 ? 1 : Math.ceil(maxRisk / 8);
+    async function renderDashboard() {
+  await waitForPlotly();   // ← add this
+  // ... rest of function
+}
     Plotly.newPlot("chart-mg-expiry-risk", [
       {
         type: "bar", orientation: "h", name: "Critical (<3 mo)",
@@ -869,6 +877,10 @@ function renderDashboard() {
     "val"
   );
   if (nearByPlant.length) {
+    async function renderDashboard() {
+  await waitForPlotly();   // ← add this
+  // ... rest of function
+}
     Plotly.newPlot("chart-mg-bar", [
       { type:"bar", name:"Value at Risk (ETB)", x:nearByPlant.map(r=>r["Plant Name"]), y:nearByPlant.map(r=>r.val), yaxis:"y",  marker:{color:"#d29922"}, hovertemplate:"<b>%{x}</b><br>ETB %{y:,.0f}<extra></extra>" },
       { type:"scatter", mode:"lines+markers", name:"Qty at Risk", x:nearByPlant.map(r=>r["Plant Name"]), y:nearByPlant.map(r=>r.qty), yaxis:"y2", marker:{color:"#f85149",size:8}, line:{color:"#f85149"}, hovertemplate:"<b>%{x}</b><br>Qty: %{y:,.0f}<extra></extra>" },
@@ -1802,6 +1814,10 @@ function renderTransit() {
   // Wire chart
   if (df.length) {
     const plantAgg = sortBy(groupBy(df, "Plant Name", [["val","Value of Stock in Transit"],["qty","Stock in Transit"]]), "val");
+    async function renderDashboard() {
+  await waitForPlotly();   // ← add this
+  // ... rest of function
+}
     Plotly.newPlot("chart-transit-plant", [
       {type:"bar",  name:"Value (ETB)", x:plantAgg.map(r=>r["Plant Name"]), y:plantAgg.map(r=>r.val), yaxis:"y",  marker:{color:"#d29922"}, hovertemplate:"<b>%{x}</b><br>ETB %{y:,.0f}<extra></extra>"},
       {type:"scatter", mode:"lines+markers", name:"Qty", x:plantAgg.map(r=>r["Plant Name"]), y:plantAgg.map(r=>r.qty), yaxis:"y2", marker:{color:"#3fb950",size:8}, line:{color:"#3fb950"}, hovertemplate:"<b>%{x}</b><br>Qty: %{y:,.0f}<extra></extra>"},
@@ -1862,6 +1878,10 @@ function renderExpiry() {
       valMap[key]   = (valMap[key]   || 0) + r["Value of Unrestricted Stock"];
     });
     const ms = Object.keys(monthMap).sort();
+    async function renderDashboard() {
+  await waitForPlotly();   // ← add this
+  // ... rest of function
+}
     Plotly.newPlot("chart-expiry-timeline", [
       {type:"bar",   name:"Items Count",   x:ms, y:ms.map(m=>monthMap[m]), marker:{color:"#d29922"}, hovertemplate:"<b>%{x}</b><br>%{y} items<extra></extra>"},
       {type:"scatter",mode:"lines+markers",name:"Value at Risk", x:ms, y:ms.map(m=>valMap[m]), yaxis:"y2", marker:{color:"#f85149",size:8}, line:{color:"#f85149"}, hovertemplate:"<b>%{x}</b><br>ETB %{y:,.0f}<extra></extra>"},
@@ -2029,6 +2049,10 @@ function renderQC() {
   if (!df.length) { document.getElementById("qc-table-wrap").innerHTML = `<div class="alert-info">✓ No items in quality inspection.</div>`; return; }
 
   const plantQC = sortBy(groupBy(rawFiltered, "Plant Name", [["val","Value of Stock in Quality Inspection"],["qty","Stock in Quality Inspection"]]), "val");
+  async function renderDashboard() {
+  await waitForPlotly();   // ← add this
+  // ... rest of function
+}
   Plotly.newPlot("chart-qc-plant", [
     {type:"bar",     name:"Value (ETB)", x:plantQC.map(r=>r["Plant Name"]), y:plantQC.map(r=>r.val), yaxis:"y",  marker:{color:"#f85149"}, hovertemplate:"<b>%{x}</b><br>ETB %{y:,.0f}<extra></extra>"},
     {type:"scatter", mode:"lines+markers", name:"Qty", x:plantQC.map(r=>r["Plant Name"]), y:plantQC.map(r=>r.qty), yaxis:"y2", marker:{color:"#3fb950",size:8}, line:{color:"#3fb950"}, hovertemplate:"<b>%{x}</b><br>Qty: %{y:,.0f}<extra></extra>"},
@@ -2430,6 +2454,10 @@ function renderBranch() {
       if (b.PlantName === centralName) return 1;
       return b.TotalValue - a.TotalValue;
     });
+    async function renderDashboard() {
+  await waitForPlotly();   // ← add this
+  // ... rest of function
+}
     Plotly.newPlot("branch-chart-wrap", [
       { type:"bar", name:"Unrestricted (ETB)", x:sorted.map(r=>r.PlantName), y:sorted.map(r=>r.Unrestricted), marker:{color:"#3fb950"}, hovertemplate:"<b>%{x}</b><br>ETB %{y:,.0f}<extra></extra>" },
       { type:"bar", name:"In Transit (ETB)",   x:sorted.map(r=>r.PlantName), y:sorted.map(r=>r.Transit),      marker:{color:"#d29922"}, hovertemplate:"<b>%{x}</b><br>ETB %{y:,.0f}<extra></extra>" },
@@ -2752,6 +2780,10 @@ function renderFlow() {
     plantStockMap[k].qc      += getMappedQty(r,"Stock in Quality Inspection");
   });
   const plantAgg = sortBy(Object.values(plantStockMap), "avail");
+  async function renderDashboard() {
+  await waitForPlotly();   // ← add this
+  // ... rest of function
+}
   Plotly.newPlot("chart-stock-levels", [
     {type:"bar", name:"Available",  x:plantAgg.map(r=>r["Plant Name"]), y:plantAgg.map(r=>r.avail),  marker:{color:"#3fb950"}},
     {type:"bar", name:"In Transit", x:plantAgg.map(r=>r["Plant Name"]), y:plantAgg.map(r=>r.transit), marker:{color:"#d29922"}},
@@ -2788,6 +2820,10 @@ function renderFlow() {
     "inbound"
   );
   if (inboundAgg.length) {
+    async function renderDashboard() {
+  await waitForPlotly();   // ← add this
+  // ... rest of function
+}
     Plotly.newPlot("chart-inbound-outbound", [
       {type:"bar", name:"Available Stock", x:inboundAgg.map(r=>r["Plant Name"]), y:inboundAgg.map(r=>r.avail),   marker:{color:"#3fb950"}},
       {type:"bar", name:"Inbound Transit", x:inboundAgg.map(r=>r["Plant Name"]), y:inboundAgg.map(r=>r.inbound), marker:{color:"#d29922"}},
@@ -3395,6 +3431,10 @@ function renderIncomingShelfLife() {
     slocMap[sloc][bucket]++;
   });
   const slocs = Object.keys(slocMap).sort();
+  async function renderDashboard() {
+  await waitForPlotly();   // ← add this
+  // ... rest of function
+}
   Plotly.newPlot("isl-chart-sloc", [
     { name:"🟢 Green (>2yr)",        x: slocs, y: slocs.map(s => slocMap[s].green),      type:"bar", marker:{ color:"#3fb950" } },
     { name:"🟡 Yellow (1.5-2yr)",    x: slocs, y: slocs.map(s => slocMap[s].yellow),     type:"bar", marker:{ color:"#d29922" } },
@@ -3651,6 +3691,10 @@ function renderConcentration() {
   const pieLabels = plantValArr.map(r => r.name);
   const pieVals   = plantValArr.map(r => r.val);
   const pieText   = plantValArr.map(r => `${r.pct.toFixed(1)}%`);
+  async function renderDashboard() {
+  await waitForPlotly();   // ← add this
+  // ... rest of function
+}
   Plotly.newPlot("chart-conc-pie", [{
     type: "pie",
     labels: pieLabels,
@@ -3782,7 +3826,10 @@ function renderConcentration() {
     if (!_spreadByPlantCount[r.plantCount]) _spreadByPlantCount[r.plantCount] = [];
     _spreadByPlantCount[r.plantCount].push(r.mat);
   });
-
+async function renderDashboard() {
+  await waitForPlotly();   // ← add this
+  // ... rest of function
+}
   Plotly.newPlot("chart-conc-spread", [{
     type: "bar",
     x: spreadLabels,
