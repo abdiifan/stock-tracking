@@ -292,7 +292,7 @@ async function _handleGoogle() {
 }
 
 // ── USER PILL in sidebar ──────────────────────────────────────────────────────
-function _renderUserPill(user) {
+function _renderUserPill(user, role) {
   _authCSS();
   const sidebar = document.getElementById("sidebar");
   if (!sidebar) return;
@@ -304,11 +304,20 @@ function _renderUserPill(user) {
     sidebar.appendChild(pill);
   }
 
-  const email   = user.email || "";
-  const initial = email.charAt(0).toUpperCase();
+  const email      = user.email || "";
+  const initial    = email.charAt(0).toUpperCase();
+  const isAdmin    = role === "admin";
+  const badgeColor = isAdmin ? "var(--blue,#3d94e0)" : "var(--dim,#4a6275)";
+  const badgeLabel = isAdmin ? "Admin" : "Viewer";
+
   pill.innerHTML = `
     <div class="pill-avatar">${initial}</div>
-    <div class="pill-email" title="${email}">${email}</div>
+    <div style="flex:1;overflow:hidden">
+      <div class="pill-email" title="${email}">${email}</div>
+      <div style="font-size:0.65rem;font-weight:700;color:${badgeColor};letter-spacing:0.05em;margin-top:1px">
+        ${badgeLabel}
+      </div>
+    </div>
     <button class="pill-logout" id="auth-logout-btn" title="Sign out">⏻</button>
   `;
   document.getElementById("auth-logout-btn").onclick = async () => {
@@ -331,20 +340,23 @@ async function authBoot() {
   }
 
   // Listen for auth state changes (sign-in, sign-out, token refresh)
-  sb.auth.onAuthStateChange((_event, session) => {
+  sb.auth.onAuthStateChange(async (_event, session) => {
     if (session?.user) {
       _currentUser = session.user;
-      // Remove overlay if present
       document.getElementById("auth-overlay")?.remove();
-      // Show user pill
-      _renderUserPill(session.user);
-      // Expose user to script.js
+
+      // Fetch this user's role from user_roles table
+      const role = await _fetchRole(session.user.id);
+      window.__pharmaRole = role;          // 'admin' | 'viewer'
       window.__pharmaUser = session.user;
+
+      _renderUserPill(session.user, role);
+      _applyRoleRestrictions(role);
     } else {
       _currentUser = null;
       _removePill();
       window.__pharmaUser = null;
-      // Block app — show login
+      window.__pharmaRole = null;
       _showAuthOverlay();
     }
   });
@@ -354,6 +366,94 @@ async function authBoot() {
   if (!session) {
     _showAuthOverlay();
   }
+}
+
+// ── ROLE HELPERS ──────────────────────────────────────────────────────────────
+
+/**
+ * Fetches the role for a given user id from user_roles.
+ * Returns 'viewer' if no row exists (safe default).
+ */
+async function _fetchRole(userId) {
+  const sb = getSupabase();
+  if (!sb) return "viewer";
+  const { data } = await sb
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .single();
+  return data?.role || "viewer";
+}
+
+/**
+ * Hides all upload controls for viewers.
+ * Upload label wrappers in the sidebar all use class="upload-btn" or
+ * specific ids — we hide the entire sidebar upload sections.
+ */
+function _applyRoleRestrictions(role) {
+  // Run after DOM is ready
+  const apply = () => {
+    const isViewer = role !== "admin";
+
+    // All four upload sections: inventory, incoming, transit, mapping
+    const uploadSections = [
+      "fileInput", "incomingFileInput", "transitFileInput", "mappingFileInput"
+    ];
+
+    uploadSections.forEach(inputId => {
+      // Walk up to the <label> wrapper and its sibling status div
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const label = input.closest("label");
+      if (label) label.style.display = isViewer ? "none" : "";
+    });
+
+    // Also hide the upload section headers and status divs for viewers
+    const uploadLabels = document.querySelectorAll(".upload-label");
+    uploadLabels.forEach(el => {
+      el.style.display = isViewer ? "none" : "";
+    });
+
+    const statusDivs = ["fileStatus","incomingFileStatus","transitFileStatus","mappingFileStatus"];
+    statusDivs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = isViewer ? "none" : "";
+    });
+
+    // Show a viewer notice in the sidebar where uploads were
+    if (isViewer) {
+      const sidebar = document.getElementById("sidebar");
+      if (sidebar && !document.getElementById("viewer-notice")) {
+        const notice = document.createElement("div");
+        notice.id = "viewer-notice";
+        notice.style.cssText = `
+          font-size:0.72rem; color:var(--muted,#7a9ab8);
+          background:var(--surface2,#141c2b);
+          border:1px solid var(--border,#1f2e44);
+          border-radius:8px; padding:0.6rem 0.8rem;
+          margin-top:0.5rem; line-height:1.5;
+        `;
+        notice.textContent = "👁 View-only access. Contact your admin to upload data.";
+        // Insert before the user pill
+        const pill = document.getElementById("auth-user-pill");
+        sidebar.insertBefore(notice, pill || null);
+      }
+    }
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", apply);
+  } else {
+    apply();
+  }
+}
+
+/**
+ * Exposed helper — lets script.js check the role before any action.
+ * Usage:  if (!isAdmin()) return;
+ */
+function isAdmin() {
+  return window.__pharmaRole === "admin";
 }
 
 // ── DB HELPERS (callable from script.js) ─────────────────────────────────────
