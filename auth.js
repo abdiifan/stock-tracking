@@ -245,6 +245,7 @@ function _showAuthOverlay() {
   document.getElementById("su-submit").onclick = _handleSignUp;
 
   // ── Google
+  document.querySelector(".auth-divider").style.display = "none";
   document.getElementById("si-google").style.display = "none";
   document.getElementById("si-google").onclick = _handleGoogle;
 }
