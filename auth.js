@@ -12,8 +12,8 @@
 // =============================================================================
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const SUPABASE_URL      = "https://YOUR_PROJECT.supabase.co";   // ← replace
-const SUPABASE_ANON_KEY = "YOUR_ANON_KEY";                       // ← replace
+const SUPABASE_URL      = "https://knscdhcdgvstfveqwofq.supabase.co";   // ← replace
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtuc2NkaGNkZ3ZzdGZ2ZXF3b2ZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNDU5NjMsImV4cCI6MjA5NzkyMTk2M30.ac00XvvzUPtf7V82ppIAsQIQb6BPhsG19hU0OK66P4w";                       // ← replace
 
 // ── SUPABASE CLIENT ───────────────────────────────────────────────────────────
 // Loaded via CDN in index.html (supabase-js v2).
