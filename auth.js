@@ -463,4 +463,11 @@ async function loadSnapshot(id) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", authBoot);
+// When auth.js is deferred, DOMContentLoaded has already fired by the time this
+// script runs — so addEventListener("DOMContentLoaded") would never trigger.
+// We check readyState and call authBoot() directly if the DOM is already ready.
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", authBoot);
+} else {
+  authBoot();
+}
