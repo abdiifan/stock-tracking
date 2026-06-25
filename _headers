@@ -1,0 +1,51 @@
+# =============================================================================
+# _headers — Cloudflare Pages cache & security headers
+#
+# Place this file in your project ROOT (same folder as index.html).
+# Cloudflare Pages applies these headers automatically on every deploy.
+#
+# What this does:
+#   • Caches JS/CSS for 1 year (they're content-hashed so safe to do)
+#   • Caches fonts for 1 year
+#   • Sets no-cache on index.html so the latest deploy is always served
+#   • Adds security headers (CSP, HSTS, etc.) appropriate for a pharma app
+# =============================================================================
+
+# ── HTML — never cache, always fresh ─────────────────────────────────────────
+/*.html
+  Cache-Control: no-cache, must-revalidate
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co; img-src 'self' data:;
+
+/
+  Cache-Control: no-cache, must-revalidate
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+
+# ── JavaScript — 1 year, immutable ───────────────────────────────────────────
+/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+# ── CSS — 1 year, immutable ───────────────────────────────────────────────────
+/*.css
+  Cache-Control: public, max-age=31536000, immutable
+
+# ── Images / logos ───────────────────────────────────────────────────────────
+/*.png
+  Cache-Control: public, max-age=86400
+/*.svg
+  Cache-Control: public, max-age=86400
+/*.ico
+  Cache-Control: public, max-age=86400
+
+# ── Fonts (if self-hosted) ────────────────────────────────────────────────────
+/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+/*.woff
+  Cache-Control: public, max-age=31536000, immutable

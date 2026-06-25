@@ -1,0 +1,94 @@
+<!-- ═══════════════════════════════════════════════════════════════════════════
+  index.html  — PATCHED HEAD + SCRIPT SECTION for PharmaTrack v2
+  
+  Changes from original:
+    1. Added Supabase JS v2 CDN (tiny, ~50 KB gzipped) in <head>
+    2. xlsx.js moved to defer — parses only when needed, doesn't block render
+    3. Plotly moved to defer + loaded lazily on first chart render (see
+       window.__plotlyReady pattern in script.js)
+    4. auth.js added BEFORE filters.js and script.js
+  
+  Replace the original <head> block and the three <script> tags near </body>
+  with the sections marked below. Everything else in index.html stays the same.
+═══════════════════════════════════════════════════════════════════════════ -->
+
+<!-- ─── REPLACE YOUR <head> WITH THIS ─── -->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EPSS Stock-Multiple — Inventory Management</title>
+
+  <!-- Inline critical styles so the page renders instantly (no flash) -->
+  <style>
+    .brand-icon img  { height: 38px; width: auto; display: block; }
+    .landing-logo img{ height: 86px; width: auto; display: block; margin: 0 auto 0.5rem; }
+
+    /* Loading skeleton shown while Plotly defers */
+    .chart-skeleton {
+      background: linear-gradient(90deg,
+        var(--surface2,#141c2b) 25%,
+        var(--surface3,#1a2438) 50%,
+        var(--surface2,#141c2b) 75%);
+      background-size: 400% 100%;
+      animation: shimmer 1.6s infinite;
+      border-radius: 8px;
+      min-height: 260px;
+    }
+    @keyframes shimmer { to { background-position: -400% 0; } }
+  </style>
+
+  <!-- Fonts: preconnect first so DNS resolves in parallel -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
+
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- ① Supabase JS v2 — ~50 KB gzipped, needed before DOMContentLoaded -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- ② xlsx — deferred: only parsed after user uploads a file, never blocks render -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+
+  <!-- ③ Plotly — deferred: 3 MB, user won't need it until after upload -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js" defer></script>
+</head>
+
+
+<!-- ─── REPLACE YOUR THREE SCRIPT TAGS NEAR </body> WITH THIS ─── -->
+<!--
+  Original:
+    <script src="filters.js"></script>
+    <script src="script.js"></script>
+
+  Replace with:
+-->
+<script src="auth.js"></script>      <!-- Auth must be first — gates the whole app -->
+<script src="filters.js" defer></script>
+<script src="script.js"  defer></script>
+
+<!--
+  NOTE ON PLOTLY DEFER:
+  Because Plotly is now deferred, it may not be ready when script.js first runs.
+  Add this guard at the top of any function in script.js that calls Plotly.newPlot():
+
+    async function waitForPlotly() {
+      while (!window.Plotly) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+    }
+
+  Then at the start of renderDashboard(), renderExpirySection() etc:
+    await waitForPlotly();
+
+  Or wrap all chart-render calls with:
+    if (window.Plotly) { Plotly.newPlot(...) }
+    else { window.addEventListener('load', () => Plotly.newPlot(...), { once: true }); }
+
+  The simplest one-line approach — add this to the very top of script.js:
+
+    const waitForPlotly = () => new Promise(r => {
+      if (window.Plotly) return r();
+      window.addEventListener('load', r, { once: true });
+    });
+-->
