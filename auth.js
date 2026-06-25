@@ -375,14 +375,23 @@ async function authBoot() {
  * Returns 'viewer' if no row exists (safe default).
  */
 async function _fetchRole(userId) {
-  const sb = getSupabase();
-  if (!sb) return "viewer";
-  const { data } = await sb
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .single();
-  return data?.role || "viewer";
+  try {
+    const sb = getSupabase();
+    if (!sb) return "viewer";
+    const { data, error } = await sb
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      console.warn("Role fetch error (defaulting to viewer):", error.message);
+      return "viewer";
+    }
+    return data?.role || "viewer";
+  } catch (e) {
+    console.warn("Role fetch failed (defaulting to viewer):", e);
+    return "viewer";
+  }
 }
 
 /**
