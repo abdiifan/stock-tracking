@@ -1,94 +1,125 @@
-<!-- ═══════════════════════════════════════════════════════════════════════════
-  index.html  — PATCHED HEAD + SCRIPT SECTION for PharmaTrack v2
-  
-  Changes from original:
-    1. Added Supabase JS v2 CDN (tiny, ~50 KB gzipped) in <head>
-    2. xlsx.js moved to defer — parses only when needed, doesn't block render
-    3. Plotly moved to defer + loaded lazily on first chart render (see
-       window.__plotlyReady pattern in script.js)
-    4. auth.js added BEFORE filters.js and script.js
-  
-  Replace the original <head> block and the three <script> tags near </body>
-  with the sections marked below. Everything else in index.html stays the same.
-═══════════════════════════════════════════════════════════════════════════ -->
+// supabase/functions/create-user/index.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Supabase Edge Function — creates a new auth user and assigns their role.
+//
+// WHY THIS EXISTS:
+//   supabase.auth.admin.* requires the SERVICE ROLE key, which must NEVER be
+//   in browser code. This function runs server-side with full service role access.
+//
+// DEPLOY:
+//   supabase functions deploy create-user
+//
+// The function is protected — only signed-in admins can call it (we verify the
+// caller's JWT and check their role in user_roles before creating anyone).
+// ─────────────────────────────────────────────────────────────────────────────
 
-<!-- ─── REPLACE YOUR <head> WITH THIS ─── -->
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EPSS Stock-Multiple — Inventory Management</title>
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-  <!-- Inline critical styles so the page renders instantly (no flash) -->
-  <style>
-    .brand-icon img  { height: 38px; width: auto; display: block; }
-    .landing-logo img{ height: 86px; width: auto; display: block; margin: 0 auto 0.5rem; }
+const corsHeaders = {
+  "Access-Control-Allow-Origin":  "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
-    /* Loading skeleton shown while Plotly defers */
-    .chart-skeleton {
-      background: linear-gradient(90deg,
-        var(--surface2,#141c2b) 25%,
-        var(--surface3,#1a2438) 50%,
-        var(--surface2,#141c2b) 75%);
-      background-size: 400% 100%;
-      animation: shimmer 1.6s infinite;
-      border-radius: 8px;
-      min-height: 260px;
-    }
-    @keyframes shimmer { to { background-position: -400% 0; } }
-  </style>
+Deno.serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
-  <!-- Fonts: preconnect first so DNS resolves in parallel -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
-
-  <link rel="stylesheet" href="style.css" />
-
-  <!-- ① Supabase JS v2 — ~50 KB gzipped, needed before DOMContentLoaded -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-
-  <!-- ② xlsx — deferred: only parsed after user uploads a file, never blocks render -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-
-  <!-- ③ Plotly — deferred: 3 MB, user won't need it until after upload -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js" defer></script>
-</head>
-
-
-<!-- ─── REPLACE YOUR THREE SCRIPT TAGS NEAR </body> WITH THIS ─── -->
-<!--
-  Original:
-    <script src="filters.js"></script>
-    <script src="script.js"></script>
-
-  Replace with:
--->
-<script src="auth.js"></script>      <!-- Auth must be first — gates the whole app -->
-<script src="filters.js" defer></script>
-<script src="script.js"  defer></script>
-
-<!--
-  NOTE ON PLOTLY DEFER:
-  Because Plotly is now deferred, it may not be ready when script.js first runs.
-  Add this guard at the top of any function in script.js that calls Plotly.newPlot():
-
-    async function waitForPlotly() {
-      while (!window.Plotly) {
-        await new Promise(r => setTimeout(r, 50));
-      }
+  try {
+    // ── 1. Verify the caller is a signed-in admin ──────────────────────────
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-  Then at the start of renderDashboard(), renderExpirySection() etc:
-    await waitForPlotly();
+    // Service role client — has full DB access
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
 
-  Or wrap all chart-render calls with:
-    if (window.Plotly) { Plotly.newPlot(...) }
-    else { window.addEventListener('load', () => Plotly.newPlot(...), { once: true }); }
+    // Regular client to verify the caller's JWT
+    const supabaseUser = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
 
-  The simplest one-line approach — add this to the very top of script.js:
+    // Get the caller's user from their JWT
+    const { data: { user: caller }, error: callerErr } = await supabaseUser.auth.getUser();
+    if (callerErr || !caller) {
+      return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    const waitForPlotly = () => new Promise(r => {
-      if (window.Plotly) return r();
-      window.addEventListener('load', r, { once: true });
+    // Check the caller's role in user_roles
+    const { data: roleRow } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", caller.id)
+      .maybeSingle();
+
+    if (roleRow?.role !== "admin") {
+      return new Response(JSON.stringify({ error: "Only admins can create users" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── 2. Parse and validate body ─────────────────────────────────────────
+    const { email, password, role = "viewer" } = await req.json();
+
+    if (!email || !password) {
+      return new Response(JSON.stringify({ error: "email and password are required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!["admin", "viewer"].includes(role)) {
+      return new Response(JSON.stringify({ error: 'role must be "admin" or "viewer"' }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── 3. Create the auth user (skips confirmation email) ────────────────
+    const { data, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
     });
--->
+
+    if (createErr) {
+      return new Response(JSON.stringify({ error: createErr.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── 4. Assign their role ──────────────────────────────────────────────
+    const { error: roleErr } = await supabaseAdmin
+      .from("user_roles")
+      .insert({ user_id: data.user.id, role });
+
+    if (roleErr) {
+      // Attempt cleanup — delete the created user so we don't have orphans
+      await supabaseAdmin.auth.admin.deleteUser(data.user.id);
+      return new Response(JSON.stringify({ error: `Role assignment failed: ${roleErr.message}` }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── 5. Return success ─────────────────────────────────────────────────
+    return new Response(
+      JSON.stringify({ user: { id: data.user.id, email: data.user.email, role } }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
+  } catch (err) {
+    return new Response(JSON.stringify({ error: String(err) }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
