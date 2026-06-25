@@ -62,7 +62,7 @@ const SYNC_BUCKET = "pharmatrack-files";
 const SYNC_KEYS = {
   inventory: "inventory",
   transit:   "transit",
-  mapping:   "mapping",   // small enough to keep as JSON; Storage used as fallback
+  mapping:   "mapping",
   incoming:  "incoming",
 };
 
@@ -138,24 +138,7 @@ async function syncSaveFile(key, file, rowCount) {
   }
 }
 
-/**
- * Saves the mapping table as JSON directly (it's tiny — a few KB at most).
- * Keeps the original JSONB approach for this one dataset.
- */
-async function syncSaveMapping(entries) {
-  const sb = getSupabase();
-  if (!sb) return;
-  try {
-    const { error } = await sb.from("shared_data").upsert(
-      { key: SYNC_KEYS.mapping, data: { entries, count: entries.length }, updated_at: new Date().toISOString() },
-      { onConflict: "key" }
-    );
-    if (error) console.warn(`sync: mapping save failed:`, error.message);
-    else       console.log(`sync: saved mapping (${entries.length} entries)`);
-  } catch (e) {
-    console.warn("sync: unexpected mapping save error:", e);
-  }
-}
+
 
 // ── LOAD ─────────────────────────────────────────────────────────────────────
 
@@ -251,15 +234,21 @@ async function syncLoad() {
       }
     }
 
-    // ── 4. Mapping (stored as JSON entries — small dataset) ────────────────
+    // ── 4. Mapping (stored as raw file in Storage) ────────────────────────
     const mapMeta = byKey[SYNC_KEYS.mapping];
-    if (mapMeta?.entries?.length) {
-      mappingTable = new Map(mapMeta.entries);
-      console.log(`sync: loaded mapping (${mappingTable.size} entries)`);
-      document.getElementById("mappingFileStatus").style.display = "block";
-      document.getElementById("mappingFileStatus").innerHTML =
-        `<div class="status-ok">✓ MAPPING LOADED</div>` +
-        `<div class="status-name">Shared mapping · ${mappingTable.size.toLocaleString()} entries</div>`;
+    if (mapMeta?.storagePath) {
+      const buf = await _downloadFromStorage(sb, mapMeta.storagePath);
+      if (buf) {
+        const parsed = _parseXlsx(buf);
+        if (parsed?.length) {
+          processMappingData(parsed);
+          console.log(`sync: loaded mapping from Storage (${mappingTable.size} entries)`);
+          document.getElementById("mappingFileStatus").style.display = "block";
+          document.getElementById("mappingFileStatus").innerHTML =
+            `<div class="status-ok">✓ MAPPING LOADED</div>` +
+            `<div class="status-name">Shared · ${mapMeta.fileName ?? "mapping"} · ${mappingTable.size.toLocaleString()} entries</div>`;
+        }
+      }
     }
 
     // ── 5. Incoming / Shelf Life ───────────────────────────────────────────
@@ -328,13 +317,15 @@ function _patchUploads() {
     });
   }
 
-  // ── Mapping (JSON path — file is tiny) ────────────────────────────────────
+  // ── Mapping ───────────────────────────────────────────────────────────────
   const mappingInput = document.getElementById("mappingFileInput");
   if (mappingInput) {
-    mappingInput.addEventListener("change", async () => {
+    mappingInput.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
       await new Promise(r => setTimeout(r, 500));
       if (!mappingTable.size) return;
-      await syncSaveMapping([...mappingTable.entries()]);
+      await syncSaveFile(SYNC_KEYS.mapping, file, mappingTable.size);
     });
   }
 
