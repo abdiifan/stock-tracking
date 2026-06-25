@@ -12,8 +12,8 @@
 // =============================================================================
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const SUPABASE_URL      = "https://knscdhcdgvstfveqwofq.supabase.co";   // ← replace
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtuc2NkaGNkZ3ZzdGZ2ZXF3b2ZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNDU5NjMsImV4cCI6MjA5NzkyMTk2M30.ac00XvvzUPtf7V82ppIAsQIQb6BPhsG19hU0OK66P4w";                       // ← replace
+const SUPABASE_URL      = "https://YOUR_PROJECT.supabase.co";   // ← replace
+const SUPABASE_ANON_KEY = "YOUR_ANON_KEY";                       // ← replace
 
 // ── SUPABASE CLIENT ───────────────────────────────────────────────────────────
 // Loaded via CDN in index.html (supabase-js v2).
@@ -116,25 +116,7 @@ function _authCSS() {
     #auth-card .auth-btn:hover { opacity: 0.88; }
     #auth-card .auth-btn:active { transform: scale(0.98); }
     #auth-card .auth-btn:disabled { opacity: 0.5; cursor: default; }
-    #auth-card .auth-divider {
-      display: flex; align-items: center; gap: 0.75rem;
-      font-size: 0.7rem; color: var(--dim, #4a6275);
-    }
-    #auth-card .auth-divider::before,
-    #auth-card .auth-divider::after {
-      content: ""; flex: 1;
-      height: 1px; background: var(--border, #1f2e44);
-    }
-    #auth-card .auth-google {
-      display: flex; align-items: center; justify-content: center; gap: 0.6rem;
-      background: var(--surface2, #141c2b);
-      border: 1px solid var(--border, #1f2e44);
-      border-radius: 8px; padding: 0.68rem 1rem;
-      font-size: 0.84rem; font-weight: 600; font-family: inherit;
-      color: var(--text, #dce8f5); cursor: pointer; width: 100%;
-      transition: background 0.18s, border-color 0.18s;
-    }
-    #auth-card .auth-google:hover { border-color: var(--blue, #3d94e0); }
+
     #auth-card .auth-msg {
       font-size: 0.78rem; padding: 0.6rem 0.85rem;
       border-radius: 7px; display: none;
@@ -200,11 +182,6 @@ function _showAuthOverlay() {
           </div>
           <div class="auth-msg" id="si-msg"></div>
           <button class="auth-btn" id="si-submit">Sign in</button>
-          <div class="auth-divider">or</div>
-          <button class="auth-google" id="si-google">
-            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#4285F4" d="M46.6 24.5c0-1.6-.1-3.2-.4-4.7H24v8.9h12.7c-.6 3-2.3 5.5-4.8 7.2v6h7.7c4.5-4.2 7-10.3 7-17.4z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.2 1.5-5 2.4-8.2 2.4-6.3 0-11.6-4.2-13.5-10H2.6v6.2C6.6 42.7 14.8 48 24 48z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6v-6.2H2.6C1 16.3 0 20 0 24s1 7.7 2.6 10.8l7.9-6.2z"/><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.8 0 6.6 5.3 2.6 13.2l7.9 6.2C12.4 13.7 17.7 9.5 24 9.5z"/></svg>
-            Continue with Google
-          </button>
         </div>
       </div>
 
@@ -244,10 +221,7 @@ function _showAuthOverlay() {
   // ── Sign up
   document.getElementById("su-submit").onclick = _handleSignUp;
 
-  // ── Google
-  document.querySelector(".auth-divider").style.display = "none";
-  document.getElementById("si-google").style.display = "none";
-  document.getElementById("si-google").onclick = _handleGoogle;
+
 }
 
 function _switchTab(tab) {
