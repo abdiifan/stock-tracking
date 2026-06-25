@@ -2,12 +2,12 @@
 // PharmaTrack v2 — sync.js  (Storage Edition)
 // Supabase data sync layer.
 //
-// STRATEGY (replaces JSONB-per-row approach):
+// STRATEGY:
 //   • Admin upload  → raw Excel bytes → Supabase Storage bucket
 //                     + tiny metadata row in shared_data  { path, count }
-//   • Viewer load   → read metadata row → download bytes from Storage
-//                     → re-parse with XLSX (same path as a local upload)
-//                     → hydrate app state
+//   • Viewer load   → read metadata row → download Blob from Storage
+//                     → wrap as File → call the same load* functions as a
+//                       local upload (loadFile / loadTransitFile / etc.)
 //
 //   This sidesteps the free-tier 1 MB JSONB-per-row limit entirely; the
 //   Storage bucket supports files up to 50 MB on the free tier.
@@ -76,18 +76,6 @@ function _storagePath(key) {
   return `${key}.xlsx`;
 }
 
-/**
- * Reads a File object as an ArrayBuffer (Promise).
- */
-function _fileToBuffer(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = e => resolve(e.target.result);
-    reader.onerror = () => reject(new Error("FileReader error"));
-    reader.readAsArrayBuffer(file);
-  });
-}
-
 // ── SAVE ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -139,47 +127,47 @@ async function syncSaveFile(key, file, rowCount) {
 }
 
 
-
 // ── LOAD ─────────────────────────────────────────────────────────────────────
 
 /**
- * Downloads a file from Storage and returns its ArrayBuffer.
+ * Downloads a file from Storage and returns it as a File object.
+ * The existing load* functions in script.js all accept a File, so we wrap
+ * the downloaded Blob — this reuses all validation/parsing/rendering logic
+ * in script.js with zero duplication.
+ *
  * Returns null on failure.
+ *
+ * @param {object} sb          - Supabase client
+ * @param {string} storagePath - e.g. "inventory.xlsx"
+ * @param {string} fileName    - display name for status messages
  */
-async function _downloadFromStorage(sb, path) {
+async function _downloadAsFile(sb, storagePath, fileName) {
   try {
-    const { data, error } = await sb.storage.from(SYNC_BUCKET).download(path);
-    if (error) { console.warn(`sync: storage download failed for "${path}":`, error.message); return null; }
-    return await data.arrayBuffer();
+    const { data: blob, error } = await sb.storage
+      .from(SYNC_BUCKET)
+      .download(storagePath);
+
+    if (error) {
+      console.warn(`sync: storage download failed for "${storagePath}":`, error.message);
+      return null;
+    }
+
+    // Wrap the Blob as a proper File so load* functions see a File object
+    return new File(
+      [blob],
+      fileName || storagePath,
+      { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
+    );
   } catch (e) {
-    console.warn(`sync: unexpected download error for "${path}":`, e);
+    console.warn(`sync: unexpected download error for "${storagePath}":`, e);
     return null;
   }
 }
 
 /**
- * Parses an Excel ArrayBuffer using the SheetJS (XLSX) library that script.js
- * already loads.  Returns an array of row objects (sheet_to_json format).
- * Returns null if XLSX is not available or parsing fails.
- */
-function _parseXlsx(buffer) {
-  if (typeof XLSX === "undefined") {
-    console.warn("sync: XLSX library not available — cannot parse downloaded file");
-    return null;
-  }
-  try {
-    const wb = XLSX.read(buffer, { type: "array", cellDates: true });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    return XLSX.utils.sheet_to_json(ws, { defval: "" });
-  } catch (e) {
-    console.warn("sync: XLSX parse error:", e);
-    return null;
-  }
-}
-
-/**
- * Loads all four datasets from Supabase and hydrates the app.
- * Called once on startup (for all users).
+ * Loads all four datasets from Supabase Storage and hydrates the app by
+ * calling the same load* functions that a manual upload would trigger.
+ * Called once on startup (for all authenticated users).
  */
 async function syncLoad() {
   const sb = getSupabase();
@@ -198,85 +186,50 @@ async function syncLoad() {
     const byKey = {};
     rows.forEach(r => { byKey[r.key] = r.data; });
 
-    // ── 2. Inventory ───────────────────────────────────────────────────────
-    const invMeta = byKey[SYNC_KEYS.inventory];
-    if (invMeta?.storagePath) {
-      const buf = await _downloadFromStorage(sb, invMeta.storagePath);
-      if (buf) {
-        const parsed = _parseXlsx(buf);
-        if (parsed?.length) {
-          // script.js's processInventoryData() handles filtering + _expiry etc.
-          // We call it exactly as if the user had uploaded the file locally.
-          processInventoryData(parsed);
-          console.log(`sync: loaded inventory from Storage (${rawDf.length} rows)`);
-          document.getElementById("fileStatus").style.display = "block";
-          document.getElementById("fileStatus").innerHTML =
-            `<div class="status-ok">✓ DATA LOADED</div>` +
-            `<div class="status-name">Shared · ${invMeta.fileName ?? "inventory"} · ${rawDf.length.toLocaleString()} records</div>`;
-        }
-      }
-    }
-
-    // ── 3. Transit ─────────────────────────────────────────────────────────
-    const transMeta = byKey[SYNC_KEYS.transit];
-    if (transMeta?.storagePath) {
-      const buf = await _downloadFromStorage(sb, transMeta.storagePath);
-      if (buf) {
-        const parsed = _parseXlsx(buf);
-        if (parsed?.length) {
-          processTransitData(parsed);
-          console.log(`sync: loaded transit from Storage (${stockTransitRaw.length} rows)`);
-          document.getElementById("transitFileStatus").style.display = "block";
-          document.getElementById("transitFileStatus").innerHTML =
-            `<div class="status-ok">✓ TRANSIT LOADED</div>` +
-            `<div class="status-name">Shared · ${transMeta.fileName ?? "transit"} · ${stockTransitRaw.length.toLocaleString()} records</div>`;
-        }
-      }
-    }
-
-    // ── 4. Mapping (stored as raw file in Storage) ────────────────────────
+    // ── 2. Mapping first — must be loaded before inventory so that
+    //       applyMaterialMapping() runs automatically inside loadFile() ──────
     const mapMeta = byKey[SYNC_KEYS.mapping];
     if (mapMeta?.storagePath) {
-      const buf = await _downloadFromStorage(sb, mapMeta.storagePath);
-      if (buf) {
-        const parsed = _parseXlsx(buf);
-        if (parsed?.length) {
-          processMappingData(parsed);
-          console.log(`sync: loaded mapping from Storage (${mappingTable.size} entries)`);
-          document.getElementById("mappingFileStatus").style.display = "block";
-          document.getElementById("mappingFileStatus").innerHTML =
-            `<div class="status-ok">✓ MAPPING LOADED</div>` +
-            `<div class="status-name">Shared · ${mapMeta.fileName ?? "mapping"} · ${mappingTable.size.toLocaleString()} entries</div>`;
-        }
+      const file = await _downloadAsFile(sb, mapMeta.storagePath, mapMeta.fileName ?? "mapping.xlsx");
+      if (file) {
+        console.log("sync: loading mapping from Storage…");
+        loadMappingFile(file);
+        // Give the synchronous FileReader + setTimeout(30ms) inside loadMappingFile time to finish
+        await new Promise(r => setTimeout(r, 200));
+      }
+    }
+
+    // ── 3. Inventory ───────────────────────────────────────────────────────
+    const invMeta = byKey[SYNC_KEYS.inventory];
+    if (invMeta?.storagePath) {
+      const file = await _downloadAsFile(sb, invMeta.storagePath, invMeta.fileName ?? "inventory.xlsx");
+      if (file) {
+        console.log("sync: loading inventory from Storage…");
+        loadFile(file);
+        await new Promise(r => setTimeout(r, 400)); // larger — inventory parse is heavier
+      }
+    }
+
+    // ── 4. Transit ─────────────────────────────────────────────────────────
+    const transMeta = byKey[SYNC_KEYS.transit];
+    if (transMeta?.storagePath) {
+      const file = await _downloadAsFile(sb, transMeta.storagePath, transMeta.fileName ?? "transit.xlsx");
+      if (file) {
+        console.log("sync: loading transit from Storage…");
+        loadTransitFile(file);
+        await new Promise(r => setTimeout(r, 200));
       }
     }
 
     // ── 5. Incoming / Shelf Life ───────────────────────────────────────────
     const incMeta = byKey[SYNC_KEYS.incoming];
     if (incMeta?.storagePath) {
-      const buf = await _downloadFromStorage(sb, incMeta.storagePath);
-      if (buf) {
-        const parsed = _parseXlsx(buf);
-        if (parsed?.length) {
-          processIncomingData(parsed);
-          console.log(`sync: loaded incoming from Storage (${incomingDf.length} rows)`);
-          document.getElementById("incomingFileStatus").style.display = "block";
-          document.getElementById("incomingFileStatus").innerHTML =
-            `<div class="status-ok">✓ SHELF LIFE LOADED</div>` +
-            `<div class="status-name">Shared · ${incMeta.fileName ?? "shelf-life"} · ${incomingDf.length.toLocaleString()} records</div>`;
-        }
+      const file = await _downloadAsFile(sb, incMeta.storagePath, incMeta.fileName ?? "shelf-life.xlsx");
+      if (file) {
+        console.log("sync: loading incoming shelf life from Storage…");
+        loadIncomingFile(file);
+        await new Promise(r => setTimeout(r, 200));
       }
-    }
-
-    // ── 6. Re-compute derived state and render ─────────────────────────────
-    if (rawDf.length) {
-      if (mappingTable.size > 0) applyMaterialMapping();
-      if (stockTransitRaw.length) recomputePhantomTransit();
-      recomputeIslMatch();
-      resetPageFilters();
-      populateAllFilters();
-      hideLanding();
-      renderPage(currentPage === "home" ? "dashboard" : currentPage);
     }
 
   } catch (e) {
@@ -285,11 +238,13 @@ async function syncLoad() {
 }
 
 // ── HOOK INTO UPLOADS ─────────────────────────────────────────────────────────
-// Patches each file <input> so that after script.js parses the file, we also
-// upload the raw bytes to Storage (instead of posting the parsed JSON rows).
+// After script.js finishes processing a user-uploaded file (admins only),
+// we also push the raw File to Storage so viewers pick it up on next load.
 //
-// NOTE: We capture the File reference synchronously on "change", then wait for
-// script.js to finish parsing before reading rowCount from global state.
+// We attach a second "change" listener on each input; the first listener
+// (registered by script.js) fires first and parses the file.  We wait
+// 500 ms for that parsing to settle, then read the resulting row count
+// from the global state before uploading.
 
 function _patchUploads() {
 
@@ -297,10 +252,11 @@ function _patchUploads() {
   const fileInput = document.getElementById("fileInput");
   if (fileInput) {
     fileInput.addEventListener("change", async (e) => {
+      if (!isAdmin()) return;
       const file = e.target.files?.[0];
       if (!file) return;
-      await new Promise(r => setTimeout(r, 500));   // let script.js parse first
-      if (!rawDf.length) return;                     // parse failed
+      await new Promise(r => setTimeout(r, 600));   // let script.js parse first
+      if (!rawDf.length) return;                     // parse failed — skip upload
       await syncSaveFile(SYNC_KEYS.inventory, file, rawDf.length);
     });
   }
@@ -309,9 +265,10 @@ function _patchUploads() {
   const transitInput = document.getElementById("transitFileInput");
   if (transitInput) {
     transitInput.addEventListener("change", async (e) => {
+      if (!isAdmin()) return;
       const file = e.target.files?.[0];
       if (!file) return;
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 600));
       if (!stockTransitRaw.length) return;
       await syncSaveFile(SYNC_KEYS.transit, file, stockTransitRaw.length);
     });
@@ -321,9 +278,10 @@ function _patchUploads() {
   const mappingInput = document.getElementById("mappingFileInput");
   if (mappingInput) {
     mappingInput.addEventListener("change", async (e) => {
+      if (!isAdmin()) return;
       const file = e.target.files?.[0];
       if (!file) return;
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 600));
       if (!mappingTable.size) return;
       await syncSaveFile(SYNC_KEYS.mapping, file, mappingTable.size);
     });
@@ -333,23 +291,25 @@ function _patchUploads() {
   const incomingInput = document.getElementById("incomingFileInput");
   if (incomingInput) {
     incomingInput.addEventListener("change", async (e) => {
+      if (!isAdmin()) return;
       const file = e.target.files?.[0];
       if (!file) return;
-      await new Promise(r => setTimeout(r, 500));
-      if (!incomingDf.length) return;
-      await syncSaveFile(SYNC_KEYS.incoming, file, incomingDf.length);
+      await new Promise(r => setTimeout(r, 600));
+      if (!incomingRaw.length) return;
+      await syncSaveFile(SYNC_KEYS.incoming, file, incomingRaw.length);
     });
   }
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
-// Poll until auth.js has resolved the session, then load shared data.
+// Poll until auth.js has resolved the session (window.__pharmaUser is set),
+// then load shared data and wire up upload patching.
 
 function _syncBoot() {
   let attempts = 0;
   const poll = setInterval(async () => {
     attempts++;
-    if (attempts > 60) { clearInterval(poll); return; }   // give up after 30s
+    if (attempts > 60) { clearInterval(poll); return; }   // give up after 30 s
     if (window.__pharmaUser === undefined) return;         // auth not resolved yet
     clearInterval(poll);
 
