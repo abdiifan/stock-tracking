@@ -12,8 +12,8 @@
 // =============================================================================
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const SUPABASE_URL      = "https://.supabase.co";   // ← replace
-const SUPABASE_ANON_KEY = " ";                       // ← replace
+const SUPABASE_URL      = "https://knscdhcdgvstfveqwofq.supabase.co";   // ← replace
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtuc2NkaGNkZ3ZzdGZ2ZXF3b2ZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNDU5NjMsImV4cCI6MjA5NzkyMTk2M30.ac00XvvzUPtf7V82ppIAsQIQb6BPhsG19hU0OK66P4w";                       // ← replace
 
 // ── SUPABASE CLIENT ───────────────────────────────────────────────────────────
 // Loaded via CDN in index.html (supabase-js v2).
@@ -182,26 +182,19 @@ function _showAuthOverlay() {
  *   const { error } = await adminCreateUser("staff@epss.gov.et", "tempPass123", "viewer");
  */
 async function adminCreateUser(email, password, role = "viewer") {
+  // NOTE: Supabase auth.admin.* requires the SERVICE ROLE key and cannot be called
+  // from the browser. We delegate to a Supabase Edge Function ("create-user") which
+  // runs server-side with the service role key. Deploy that function from:
+  //   supabase/functions/create-user/index.ts  (see setup guide in README)
   if (!isAdmin()) return { error: "Not authorised" };
   const sb = getSupabase();
   if (!sb) return { error: "Supabase not ready" };
 
-  // 1. Create the auth user via Supabase sign-up
-  const { data, error } = await sb.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,   // skip confirmation email, admin is creating directly
+  const { data, error } = await sb.functions.invoke("create-user", {
+    body: { email, password, role },
   });
   if (error) return { error: error.message };
-
-  // 2. Assign their role
-  const { error: roleErr } = await sb.from("user_roles").insert({
-    user_id: data.user.id,
-    role,
-  });
-  if (roleErr) return { error: roleErr.message };
-
-  return { data: data.user };
+  return { data };
 }
 
 function _setMsg(id, text, type) {
@@ -229,7 +222,16 @@ async function _handleSignIn() {
   const { error } = await sb.auth.signInWithPassword({ email, password: pass });
   _setBusy("si-submit", false);
 
-  if (error) { _setMsg("si-msg", error.message, "error"); }
+  if (error) {
+    const MSG_MAP = {
+      "Invalid login credentials":        "Incorrect email or password. Please try again.",
+      "Email not confirmed":              "Please confirm your email address before signing in.",
+      "User not allowed":                 "Your account is not authorised. Contact your administrator.",
+      "Too many requests":                "Too many sign-in attempts. Please wait a moment and try again.",
+    };
+    const friendly = MSG_MAP[error.message] || error.message;
+    _setMsg("si-msg", friendly, "error");
+  }
   // success is handled by the onAuthStateChange listener
 }
 
@@ -354,7 +356,11 @@ function _applyRoleRestrictions(role) {
     uploadSections.forEach(inputId => {
       // Walk up to the <label> wrapper and its sibling status div
       const input = document.getElementById(inputId);
-      if (!input) return;
+      // FIX #5: null-guard — if DOM isn't ready yet, retry after a short delay
+      if (!input) {
+        setTimeout(() => apply(), 150);
+        return;
+      }
       const label = input.closest("label");
       if (label) label.style.display = isViewer ? "none" : "";
     });
