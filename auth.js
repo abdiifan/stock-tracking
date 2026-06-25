@@ -68,21 +68,6 @@ function _authCSS() {
       text-align: center; margin-top: -0.8rem;
       font-size: 0.78rem; color: var(--muted, #7a9ab8);
     }
-    #auth-card .auth-tabs {
-      display: flex; border-bottom: 1px solid var(--border, #1f2e44);
-      gap: 0;
-    }
-    #auth-card .auth-tab {
-      flex: 1; padding: 0.55rem 0; font-size: 0.82rem; font-weight: 600;
-      cursor: pointer; background: none; border: none;
-      color: var(--muted, #7a9ab8);
-      border-bottom: 2px solid transparent; margin-bottom: -1px;
-      transition: color 0.18s, border-color 0.18s;
-    }
-    #auth-card .auth-tab.active {
-      color: var(--blue, #3d94e0);
-      border-bottom-color: var(--blue, #3d94e0);
-    }
     #auth-card .auth-field {
       display: flex; flex-direction: column; gap: 0.38rem;
     }
@@ -164,72 +149,59 @@ function _showAuthOverlay() {
       <div class="auth-logo">Stock-<span>Multiple</span>Track</div>
       <div class="auth-sub">EPSS Pharmaceutical Inventory — Sign in to continue</div>
 
-      <div class="auth-tabs">
-        <button class="auth-tab active" id="tab-signin" type="button">Sign in</button>
-        <button class="auth-tab"        id="tab-signup" type="button">Create account</button>
+      <div class="auth-field">
+        <label for="si-email">Email</label>
+        <input type="email" id="si-email" placeholder="you@epss.gov.et" autocomplete="email" />
       </div>
-
-      <!-- Sign In -->
-      <div id="panel-signin">
-        <div style="display:flex;flex-direction:column;gap:1rem">
-          <div class="auth-field">
-            <label for="si-email">Email</label>
-            <input type="email" id="si-email" placeholder="you@epss.gov.et" autocomplete="email" />
-          </div>
-          <div class="auth-field">
-            <label for="si-pass">Password</label>
-            <input type="password" id="si-pass" placeholder="••••••••" autocomplete="current-password" />
-          </div>
-          <div class="auth-msg" id="si-msg"></div>
-          <button class="auth-btn" id="si-submit">Sign in</button>
-        </div>
+      <div class="auth-field">
+        <label for="si-pass">Password</label>
+        <input type="password" id="si-pass" placeholder="••••••••" autocomplete="current-password" />
       </div>
-
-      <!-- Sign Up -->
-      <div id="panel-signup" style="display:none">
-        <div style="display:flex;flex-direction:column;gap:1rem">
-          <div class="auth-field">
-            <label for="su-name">Full name</label>
-            <input type="text" id="su-name" placeholder="Selam Tadesse" autocomplete="name" />
-          </div>
-          <div class="auth-field">
-            <label for="su-email">Email</label>
-            <input type="email" id="su-email" placeholder="you@epss.gov.et" autocomplete="email" />
-          </div>
-          <div class="auth-field">
-            <label for="su-pass">Password <span style="font-weight:400;text-transform:none;letter-spacing:0">(min 8 chars)</span></label>
-            <input type="password" id="su-pass" placeholder="••••••••" autocomplete="new-password" />
-          </div>
-          <div class="auth-msg" id="su-msg"></div>
-          <button class="auth-btn" id="su-submit">Create account</button>
-        </div>
+      <div class="auth-msg" id="si-msg"></div>
+      <button class="auth-btn" id="si-submit">Sign in</button>
+      <div style="font-size:0.72rem;color:var(--dim,#4a6275);text-align:center;margin-top:-0.4rem">
+        No account? Contact your system administrator.
       </div>
     </div>
   `;
   document.body.appendChild(overlay);
-
-  // ── Tab switching
-  document.getElementById("tab-signin").onclick = () => _switchTab("signin");
-  document.getElementById("tab-signup").onclick = () => _switchTab("signup");
 
   // ── Sign in
   document.getElementById("si-submit").onclick = _handleSignIn;
   document.getElementById("si-pass").addEventListener("keydown", e => {
     if (e.key === "Enter") _handleSignIn();
   });
-
-  // ── Sign up
-  document.getElementById("su-submit").onclick = _handleSignUp;
-
-
 }
 
-function _switchTab(tab) {
-  const isSign = tab === "signin";
-  document.getElementById("tab-signin").classList.toggle("active", isSign);
-  document.getElementById("tab-signup").classList.toggle("active", !isSign);
-  document.getElementById("panel-signin").style.display = isSign  ? "" : "none";
-  document.getElementById("panel-signup").style.display = !isSign ? "" : "none";
+// ── ADMIN USER MANAGEMENT (callable from inside the app) ─────────────────────
+/**
+ * Creates a new user account. Only works when called by a signed-in admin.
+ * Call this from an admin-only UI panel inside the app, never from the login screen.
+ *
+ * Usage:
+ *   const { error } = await adminCreateUser("staff@epss.gov.et", "tempPass123", "viewer");
+ */
+async function adminCreateUser(email, password, role = "viewer") {
+  if (!isAdmin()) return { error: "Not authorised" };
+  const sb = getSupabase();
+  if (!sb) return { error: "Supabase not ready" };
+
+  // 1. Create the auth user via Supabase sign-up
+  const { data, error } = await sb.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,   // skip confirmation email, admin is creating directly
+  });
+  if (error) return { error: error.message };
+
+  // 2. Assign their role
+  const { error: roleErr } = await sb.from("user_roles").insert({
+    user_id: data.user.id,
+    role,
+  });
+  if (roleErr) return { error: roleErr.message };
+
+  return { data: data.user };
 }
 
 function _setMsg(id, text, type) {
@@ -259,36 +231,6 @@ async function _handleSignIn() {
 
   if (error) { _setMsg("si-msg", error.message, "error"); }
   // success is handled by the onAuthStateChange listener
-}
-
-async function _handleSignUp() {
-  const sb    = getSupabase(); if (!sb) return;
-  const name  = (document.getElementById("su-name")?.value  || "").trim();
-  const email = (document.getElementById("su-email")?.value || "").trim();
-  const pass  =  document.getElementById("su-pass")?.value  || "";
-  if (!email || !pass) { _setMsg("su-msg", "Email and password are required.", "error"); return; }
-  if (pass.length < 8)  { _setMsg("su-msg", "Password must be at least 8 characters.", "error"); return; }
-
-  _setBusy("su-submit", true);
-  const { error } = await sb.auth.signUp({
-    email, password: pass,
-    options: { data: { full_name: name } },
-  });
-  _setBusy("su-submit", false);
-
-  if (error) {
-    _setMsg("su-msg", error.message, "error");
-  } else {
-    _setMsg("su-msg", "Check your email for a confirmation link.", "success");
-  }
-}
-
-async function _handleGoogle() {
-  const sb = getSupabase(); if (!sb) return;
-  await sb.auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo: window.location.href },
-  });
 }
 
 // ── USER PILL in sidebar ──────────────────────────────────────────────────────
