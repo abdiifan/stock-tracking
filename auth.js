@@ -275,38 +275,44 @@ function _removePill() {
 async function authBoot() {
   const sb = getSupabase();
   if (!sb) {
-    // Supabase not configured — skip auth and load app directly.
     console.warn("auth.js: Supabase not configured. Running without authentication.");
     return;
   }
 
-  // Listen for auth state changes (sign-in, sign-out, token refresh)
-  sb.auth.onAuthStateChange(async (_event, session) => {
-    if (session?.user) {
-      _currentUser = session.user;
-      document.getElementById("auth-overlay")?.remove();
+  // Show the overlay immediately — before any async work.
+  // This guarantees the login screen always appears on load,
+  // regardless of cached sessions or network timing.
+  _showAuthOverlay();
 
-      // Fetch this user's role from user_roles table
-      const role = await _fetchRole(session.user.id);
-      window.__pharmaRole = role;          // 'admin' | 'viewer'
+  // onAuthStateChange is the single source of truth for auth state.
+  // It fires with INITIAL_SESSION on page load (immediately, synchronously),
+  // then again on every sign-in / sign-out / token-refresh.
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (session?.user) {
+      // ── Signed in (or session restored from cache) ──
+      _currentUser = session.user;
       window.__pharmaUser = session.user;
 
+      // Remove login overlay
+      document.getElementById("auth-overlay")?.remove();
+
+      // Fetch role and apply restrictions
+      const role = await _fetchRole(session.user.id);
+      window.__pharmaRole = role;
       _renderUserPill(session.user, role);
       _applyRoleRestrictions(role);
+
     } else {
+      // ── Signed out ──
       _currentUser = null;
-      _removePill();
       window.__pharmaUser = null;
       window.__pharmaRole = null;
+      _removePill();
+
+      // Always show the overlay when signed out
       _showAuthOverlay();
     }
   });
-
-  // Check for existing session on page load
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) {
-    _showAuthOverlay();
-  }
 }
 
 // ── ROLE HELPERS ──────────────────────────────────────────────────────────────
