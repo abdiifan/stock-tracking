@@ -6,7 +6,7 @@
   <title>EPSS Stock-Multiple — Inventory Management</title>
   <style>
     .brand-icon img { height: 38px; width: auto; display: block; }
-    .landing-logo img { height: 86px; width: auto; display: block; margFin: 0 auto 0.5rem; }
+    .landing-logo img { height: 86px; width: auto; display: block; margin: 0 auto 0.5rem; }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -565,6 +565,9 @@
 <!-- filters + script deferred: run after DOM + auth are ready -->
 <script src="filters.js" defer></script>
 <script src="script.js" defer></script>
+<!-- sync.js: Supabase Storage sync — loads shared data for all users,
+     patches uploads so admins push to Storage automatically.
+     Must come after script.js (depends on loadFile, loadTransitFile, etc.) -->
 <script src="sync.js" defer></script>
 <script>
 // ── TRANSIT TAB SWITCHING ─────────────────────────────────────
